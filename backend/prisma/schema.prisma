@@ -1,0 +1,775 @@
+// Project Tracker — Prisma schema
+// Phase 1: identity, security and configurable vocabularies.
+// Later phases append project/task/collaboration models (see ARCHITECTURE.md §6).
+//
+// Conventions:
+//  - UUID primary keys (gen_random_uuid(), provided by pgcrypto)
+//  - created_at / updated_at timestamptz on every table
+//  - deleted_at for soft deletion
+//  - fixed infrastructure values use Postgres enums; user-configurable
+//    vocabularies (statuses/priorities/types) are lookup tables.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums (fixed values only — see ARCHITECTURE.md decision D3/D4)
+// ---------------------------------------------------------------------------
+
+enum GlobalRole {
+  ADMIN
+  PROJECT_MANAGER
+  DEVELOPER
+  VIEWER
+}
+
+enum AuditAction {
+  LOGIN
+  LOGIN_FAILED
+  LOGOUT
+  ACCOUNT_LOCKED
+  SESSION_REVOKED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  PASSWORD_CHANGED
+  USER_CREATED
+  USER_UPDATED
+  USER_ACTIVATED
+  USER_DEACTIVATED
+  USER_DELETED
+  USER_ROLE_CHANGED
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  PROJECT_ARCHIVED
+  PROJECT_UNARCHIVED
+  PROJECT_DELETED
+  PROJECT_MEMBER_ADDED
+  PROJECT_MEMBER_UPDATED
+  PROJECT_MEMBER_REMOVED
+  TASK_CREATED
+  TASK_UPDATED
+  TASK_DELETED
+  TASK_STATUS_CHANGED
+  TASK_ASSIGNED
+  COMMENT_CREATED
+  COMMENT_DELETED
+  ATTACHMENT_UPLOADED
+  ATTACHMENT_DELETED
+  MILESTONE_CREATED
+  MILESTONE_UPDATED
+  MILESTONE_DELETED
+  IMPORT_COMMITTED
+  VOCABULARY_CHANGED
+  SETTINGS_CHANGED
+  LABEL_CREATED
+  LABEL_UPDATED
+  LABEL_DELETED
+  SAVED_VIEW_CREATED
+  SAVED_VIEW_DELETED
+  USER_PASSWORD_RESET
+}
+
+enum MailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum ProjectStatusCategory {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+
+enum TaskProgressMode {
+  AUTO
+  MANUAL
+}
+
+enum ProjectRole {
+  MANAGER
+  DEVELOPER
+  VIEWER
+}
+
+enum ProgressWeighting {
+  COUNT
+  HOURS
+}
+
+enum MilestoneStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_STATUS_CHANGED
+  TASK_COMMENTED
+  TASK_MENTIONED
+  TASK_DUE_SOON
+  TASK_OVERDUE
+  PROJECT_MEMBER_ADDED
+}
+
+enum ImportStatus {
+  UPLOADED
+  MAPPED
+  VALIDATED
+  COMMITTED
+  FAILED
+}
+
+enum ImportRowStatus {
+  PENDING
+  VALID
+  INVALID
+  IMPORTED
+  SKIPPED
+}
+
+enum SavedViewScope {
+  GLOBAL
+  PROJECT
+}
+
+enum ActivityAction {
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  PROJECT_STATUS_CHANGED
+  PROJECT_ARCHIVED
+  PROJECT_UNARCHIVED
+  MEMBER_ADDED
+  MEMBER_ROLE_CHANGED
+  MEMBER_REMOVED
+  MILESTONE_CREATED
+  MILESTONE_UPDATED
+  MILESTONE_COMPLETED
+  MILESTONE_DELETED
+  LABEL_CREATED
+  LABEL_UPDATED
+  LABEL_DELETED
+  SAVED_VIEW_CREATED
+  SAVED_VIEW_DELETED
+  TASK_CREATED
+  TASK_UPDATED
+  TASK_STATUS_CHANGED
+  TASK_ASSIGNED
+  TASK_DELETED
+  DEPENDENCY_ADDED
+  DEPENDENCY_REMOVED
+  COMMENT_CREATED
+  COMMENT_DELETED
+  ATTACHMENT_UPLOADED
+  ATTACHMENT_DELETED
+  IMPORT_COMMITTED
+}
+
+enum TaskStatusCategory {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  REVIEW
+  TESTING
+  BLOCKED
+  DONE
+  CANCELLED
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id                 String     @id @default(uuid()) @db.Uuid
+  email              String     @db.Citext
+  passwordHash       String     @map("password_hash")
+  displayName        String     @map("display_name")
+  avatarUrl          String?    @map("avatar_url")
+  globalRole         GlobalRole @default(VIEWER) @map("global_role")
+  timezone           String     @default("Asia/Manila")
+  isActive           Boolean    @default(true) @map("is_active")
+  mustChangePassword Boolean    @default(false) @map("must_change_password")
+  failedLoginCount   Int        @default(0) @map("failed_login_count")
+  lockedUntil        DateTime?  @map("locked_until") @db.Timestamptz(6)
+  lastLoginAt        DateTime?  @map("last_login_at") @db.Timestamptz(6)
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt          DateTime?  @map("deleted_at") @db.Timestamptz(6)
+
+  sessions       Session[]
+  passwordResets PasswordResetToken[]
+  auditLogs      AuditLog[]           @relation("AuditActor")
+
+  managedProjects     Project[]        @relation("ProjectManager")
+  createdProjects     Project[]        @relation("ProjectCreator")
+  projectMemberships  ProjectMember[]
+  addedMemberships    ProjectMember[]  @relation("MemberAddedBy")
+  createdLabels       Label[]
+  savedViews          SavedView[]
+  activityLogs        ActivityLog[]    @relation("ActivityActor")
+  assignedTasks       Task[]           @relation("TaskAssignee")
+  reportedTasks       Task[]           @relation("TaskReporter")
+  comments            Comment[]        @relation("CommentAuthor")
+  commentMentions     CommentMention[] @relation("CommentMentionedUser")
+  attachments         Attachment[]     @relation("AttachmentUploader")
+  notifications       Notification[]   @relation("NotificationUser")
+  createdDependencies TaskDependency[] @relation("TaskDependencyCreator")
+  importJobs          ImportJob[]      @relation("ImportCreator")
+
+  @@map("users")
+}
+
+model Session {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  tokenHash     String    @unique @map("token_hash")
+  csrfTokenHash String    @map("csrf_token_hash")
+  userAgent     String?   @map("user_agent")
+  ip            String?
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(6)
+  idleExpiresAt DateTime  @map("idle_expires_at") @db.Timestamptz(6)
+  lastSeenAt    DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model PasswordResetToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt      DateTime? @map("used_at") @db.Timestamptz(6)
+  requestedIp String?   @map("requested_ip")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model Permission {
+  id          String  @id @default(uuid()) @db.Uuid
+  key         String  @unique
+  description String?
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(uuid()) @db.Uuid
+  role         GlobalRole
+  permissionId String     @map("permission_id") @db.Uuid
+
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([role, permissionId])
+  @@map("role_permissions")
+}
+
+model AuditLog {
+  id           String      @id @default(uuid()) @db.Uuid
+  actorUserId  String?     @map("actor_user_id") @db.Uuid
+  actorEmail   String?     @map("actor_email")
+  action       AuditAction
+  resourceType String?     @map("resource_type")
+  resourceId   String?     @map("resource_id")
+  metadata     Json?
+  ip           String?
+  userAgent    String?     @map("user_agent")
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([actorUserId])
+  @@index([resourceType, resourceId])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+model MailOutbox {
+  id        String     @id @default(uuid()) @db.Uuid
+  toEmail   String     @map("to_email")
+  subject   String
+  body      String
+  status    MailStatus @default(PENDING)
+  error     String?
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  sentAt    DateTime?  @map("sent_at") @db.Timestamptz(6)
+
+  @@index([status, createdAt])
+  @@map("mail_outbox")
+}
+
+// ---------------------------------------------------------------------------
+// Configurable vocabularies (lookup tables — ARCHITECTURE.md §6.3)
+// ---------------------------------------------------------------------------
+
+model ProjectStatus {
+  id        String                @id @default(uuid()) @db.Uuid
+  key       String                @unique
+  name      String
+  category  ProjectStatusCategory
+  color     String                @default("#64748b")
+  sortOrder Int                   @default(0) @map("sort_order")
+  isActive  Boolean               @default(true) @map("is_active")
+  isDefault Boolean               @default(false) @map("is_default")
+  isSystem  Boolean               @default(false) @map("is_system")
+  createdAt DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  projects Project[]
+
+  @@index([sortOrder])
+  @@map("project_statuses")
+}
+
+model TaskStatus {
+  id        String             @id @default(uuid()) @db.Uuid
+  key       String             @unique
+  name      String
+  category  TaskStatusCategory
+  color     String             @default("#64748b")
+  sortOrder Int                @default(0) @map("sort_order")
+  isActive  Boolean            @default(true) @map("is_active")
+  isDefault Boolean            @default(false) @map("is_default")
+  isSystem  Boolean            @default(false) @map("is_system")
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tasks Task[]
+
+  @@index([sortOrder])
+  @@map("task_statuses")
+}
+
+model TaskPriority {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  name      String
+  weight    Int      @default(0)
+  color     String   @default("#64748b")
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  isDefault Boolean  @default(false) @map("is_default")
+  isSystem  Boolean  @default(false) @map("is_system")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  projects Project[]
+  tasks    Task[]
+
+  @@index([sortOrder])
+  @@map("task_priorities")
+}
+
+model TaskType {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  name      String
+  icon      String   @default("square")
+  color     String   @default("#64748b")
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  isDefault Boolean  @default(false) @map("is_default")
+  isSystem  Boolean  @default(false) @map("is_system")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tasks Task[]
+
+  @@index([sortOrder])
+  @@map("task_types")
+}
+
+// ---------------------------------------------------------------------------
+// Projects (Phase 2)
+// ---------------------------------------------------------------------------
+
+model Project {
+  id                   String            @id @default(uuid()) @db.Uuid
+  code                 String
+  name                 String
+  description          String?
+  statusId             String            @map("status_id") @db.Uuid
+  priorityId           String            @map("priority_id") @db.Uuid
+  startDate            DateTime?         @map("start_date") @db.Date
+  targetDate           DateTime?         @map("target_date") @db.Date
+  actualCompletionDate DateTime?         @map("actual_completion_date") @db.Date
+  managerId            String?           @map("manager_id") @db.Uuid
+  // Cached progress, recomputed from tasks in Phase 3 and thereafter.
+  progress             Decimal           @default(0) @map("progress") @db.Decimal(5, 2)
+  progressWeighting    ProgressWeighting @default(COUNT) @map("progress_weighting")
+  // Allocates per-project task numbers (WEBAPP-1, WEBAPP-2, ...) in Phase 3.
+  taskSequence         Int               @default(0) @map("task_sequence")
+  isArchived           Boolean           @default(false) @map("is_archived")
+  archivedAt           DateTime?         @map("archived_at") @db.Timestamptz(6)
+  createdById          String?           @map("created_by_id") @db.Uuid
+  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt            DateTime?         @map("deleted_at") @db.Timestamptz(6)
+
+  status      ProjectStatus   @relation(fields: [statusId], references: [id])
+  priority    TaskPriority    @relation(fields: [priorityId], references: [id])
+  manager     User?           @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
+  createdBy   User?           @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  members     ProjectMember[]
+  milestones  Milestone[]
+  labels      Label[]
+  savedViews  SavedView[]
+  activity    ActivityLog[]
+  tasks       Task[]
+  attachments Attachment[]
+  importJobs  ImportJob[]
+
+  @@index([statusId])
+  @@index([managerId])
+  @@index([deletedAt])
+  @@map("projects")
+}
+
+model ProjectMember {
+  projectId   String      @map("project_id") @db.Uuid
+  userId      String      @map("user_id") @db.Uuid
+  projectRole ProjectRole @map("project_role")
+  addedById   String?     @map("added_by_id") @db.Uuid
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addedBy User?   @relation("MemberAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+model Milestone {
+  id          String          @id @default(uuid()) @db.Uuid
+  projectId   String          @map("project_id") @db.Uuid
+  name        String
+  description String?
+  targetDate  DateTime?       @map("target_date") @db.Date
+  status      MilestoneStatus @default(PLANNED)
+  completedAt DateTime?       @map("completed_at") @db.Timestamptz(6)
+  sortOrder   Int             @default(0) @map("sort_order")
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime?       @map("deleted_at") @db.Timestamptz(6)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@index([projectId, sortOrder])
+  @@map("milestones")
+}
+
+model Label {
+  id          String    @id @default(uuid()) @db.Uuid
+  // NULL project_id = global label available to every project.
+  projectId   String?   @map("project_id") @db.Uuid
+  name        String
+  color       String    @default("#6366f1")
+  createdById String?   @map("created_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  project    Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy  User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  taskLabels TaskLabel[]
+
+  @@index([projectId])
+  @@map("labels")
+}
+
+model SavedView {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  name      String
+  scope     SavedViewScope @default(PROJECT)
+  projectId String?        @map("project_id") @db.Uuid
+  filters   Json
+  isDefault Boolean        @default(false) @map("is_default")
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([projectId])
+  @@map("saved_views")
+}
+
+model ActivityLog {
+  id                String         @id @default(uuid()) @db.Uuid
+  projectId         String         @map("project_id") @db.Uuid
+  // FK to tasks is added in Phase 3 when the tasks table exists.
+  taskId            String?        @map("task_id") @db.Uuid
+  actorUserId       String?        @map("actor_user_id") @db.Uuid
+  actorNameSnapshot String         @map("actor_name_snapshot")
+  action            ActivityAction
+  field             String?
+  oldValue          String?        @map("old_value")
+  newValue          String?        @map("new_value")
+  metadata          Json?
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actor   User?   @relation("ActivityActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  task    Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([taskId, createdAt(sort: Desc)])
+  @@map("activity_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Tasks (Phase 3)
+// ---------------------------------------------------------------------------
+
+model Task {
+  id               String           @id @default(uuid()) @db.Uuid
+  projectId        String           @map("project_id") @db.Uuid
+  // Self-relation for subtasks; nesting is capped at two levels in the service.
+  parentTaskId     String?          @map("parent_task_id") @db.Uuid
+  milestoneId      String?          @map("milestone_id") @db.Uuid
+  // Per-project sequence allocated inside the creation transaction.
+  number           Int
+  key              String           @unique
+  title            String
+  description      String?
+  statusId         String           @map("status_id") @db.Uuid
+  priorityId       String           @map("priority_id") @db.Uuid
+  typeId           String           @map("type_id") @db.Uuid
+  assigneeId       String?          @map("assignee_id") @db.Uuid
+  reporterId       String?          @map("reporter_id") @db.Uuid
+  startDate        DateTime?        @map("start_date") @db.Date
+  dueDate          DateTime?        @map("due_date") @db.Date
+  completedAt      DateTime?        @map("completed_at") @db.Timestamptz(6)
+  estimatedHours   Decimal?         @map("estimated_hours") @db.Decimal(6, 2)
+  actualHours      Decimal          @default(0) @map("actual_hours") @db.Decimal(6, 2)
+  progress         Int              @default(0)
+  progressMode     TaskProgressMode @default(MANUAL) @map("progress_mode")
+  // Free text retained from the original spreadsheet workflow.
+  nextStep         String?          @map("next_step")
+  verificationNote String?          @map("verification_note")
+  codeReferences   String[]         @default([]) @map("code_references")
+  sortOrder        Int              @default(0) @map("sort_order")
+  // Optimistic concurrency guard for Kanban drags and concurrent edits.
+  version          Int              @default(1)
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt        DateTime?        @map("deleted_at") @db.Timestamptz(6)
+
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent       Task?         @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks     Task[]        @relation("TaskSubtasks")
+  milestone    Milestone?    @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  status       TaskStatus    @relation(fields: [statusId], references: [id])
+  priority     TaskPriority  @relation(fields: [priorityId], references: [id])
+  type         TaskType      @relation(fields: [typeId], references: [id])
+  assignee     User?         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  reporter     User?         @relation("TaskReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  labels       TaskLabel[]
+  activity     ActivityLog[]
+  comments     Comment[]
+  attachments  Attachment[]
+  importedRows ImportRow[]   @relation("ImportedTask")
+
+  // Dependencies: this task is blocked by `dependencies`, and blocks `dependents`.
+  dependencies TaskDependency[] @relation("TaskDependencyTask")
+  dependents   TaskDependency[] @relation("TaskDependencyBlocker")
+
+  @@unique([projectId, number])
+  @@index([projectId, statusId])
+  @@index([projectId, assigneeId])
+  @@index([projectId, parentTaskId])
+  @@index([assigneeId, dueDate])
+  @@index([milestoneId])
+  @@index([deletedAt])
+  @@map("tasks")
+}
+
+model TaskLabel {
+  taskId  String @map("task_id") @db.Uuid
+  labelId String @map("label_id") @db.Uuid
+
+  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, labelId])
+  @@index([labelId])
+  @@map("task_labels")
+}
+
+// ---------------------------------------------------------------------------
+// Collaboration (Phase 5): comments, attachments and notifications
+// ---------------------------------------------------------------------------
+
+model Comment {
+  id        String    @id @default(uuid()) @db.Uuid
+  taskId    String    @map("task_id") @db.Uuid
+  authorId  String    @map("author_id") @db.Uuid
+  body      String
+  editedAt  DateTime? @map("edited_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  task        Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author      User             @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  mentions    CommentMention[]
+  attachments Attachment[]
+
+  @@index([taskId, createdAt(sort: Desc)])
+  @@map("comments")
+}
+
+model CommentMention {
+  commentId String @map("comment_id") @db.Uuid
+  userId    String @map("user_id") @db.Uuid
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation("CommentMentionedUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId])
+  @@index([userId])
+  @@map("comment_mentions")
+}
+
+model Attachment {
+  id               String    @id @default(uuid()) @db.Uuid
+  projectId        String    @map("project_id") @db.Uuid
+  taskId           String?   @map("task_id") @db.Uuid
+  commentId        String?   @map("comment_id") @db.Uuid
+  uploaderId       String    @map("uploader_id") @db.Uuid
+  originalFilename String    @map("original_filename")
+  // Relative, server-generated storage key — never a user-supplied path.
+  storedKey        String    @map("stored_key")
+  mimeType         String    @map("mime_type")
+  sizeBytes        Int       @map("size_bytes")
+  checksumSha256   String    @map("checksum_sha256")
+  storageProvider  String    @default("local") @map("storage_provider")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task     Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  comment  Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  uploader User     @relation("AttachmentUploader", fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt(sort: Desc)])
+  @@index([projectId])
+  @@map("attachments")
+}
+
+model Notification {
+  id         String           @id @default(uuid()) @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  type       NotificationType
+  title      String
+  body       String?
+  entityType String           @map("entity_type")
+  entityId   String           @map("entity_id") @db.Uuid
+  projectId  String?          @map("project_id") @db.Uuid
+  taskId     String?          @map("task_id") @db.Uuid
+  commentId  String?          @map("comment_id") @db.Uuid
+  // Present for scheduled reminders so the same day never notifies twice.
+  dedupeKey  String?          @unique @map("dedupe_key")
+  isRead     Boolean          @default(false) @map("is_read")
+  readAt     DateTime?        @map("read_at") @db.Timestamptz(6)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation("NotificationUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// Task dependencies (Phase 6)
+// ---------------------------------------------------------------------------
+
+model TaskDependency {
+  id              String   @id @default(uuid()) @db.Uuid
+  taskId          String   @map("task_id") @db.Uuid
+  dependsOnTaskId String   @map("depends_on_task_id") @db.Uuid
+  createdById     String?  @map("created_by_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  task      Task  @relation("TaskDependencyTask", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn Task  @relation("TaskDependencyBlocker", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("TaskDependencyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([taskId, dependsOnTaskId])
+  @@index([dependsOnTaskId])
+  @@map("task_dependencies")
+}
+
+// ---------------------------------------------------------------------------
+// Spreadsheet import (Phase 8)
+// ---------------------------------------------------------------------------
+
+model ImportJob {
+  id           String       @id @default(uuid()) @db.Uuid
+  createdById  String?      @map("created_by_id") @db.Uuid
+  projectId    String?      @map("project_id") @db.Uuid
+  filename     String
+  sourceFormat String       @map("source_format")
+  status       ImportStatus @default(UPLOADED)
+  mapping      Json?
+  summary      Json?
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  committedAt  DateTime?    @map("committed_at") @db.Timestamptz(6)
+
+  createdBy User?       @relation("ImportCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  project   Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  rows      ImportRow[]
+
+  @@index([createdById])
+  @@map("import_jobs")
+}
+
+model ImportRow {
+  id         String          @id @default(uuid()) @db.Uuid
+  jobId      String          @map("job_id") @db.Uuid
+  rowNumber  Int             @map("row_number")
+  raw        Json
+  normalized Json?
+  // SHA-256 of the mapped values; makes re-importing the same file idempotent.
+  rowHash    String          @map("row_hash")
+  status     ImportRowStatus @default(PENDING)
+  errors     Json?
+  taskId     String?         @map("task_id") @db.Uuid
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  job  ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  task Task?     @relation("ImportedTask", fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@unique([jobId, rowNumber])
+  @@index([jobId, status])
+  @@map("import_rows")
+}

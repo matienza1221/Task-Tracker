@@ -1,0 +1,106 @@
+# ---------------------------------------------------------------------------
+# Project Tracker — development stack
+#   docker compose up --build
+#   Web:  https://localhost:5173   (self-signed certificate)
+#   API:  http://localhost:4000/api/health
+# ---------------------------------------------------------------------------
+name: task-tracker
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tracker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-tracker}
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    networks: [tracker-net]
+
+  api:
+    build:
+      context: ./backend
+      target: dev
+    environment:
+      NODE_ENV: development
+      PORT: '4000'
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tracker}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tracker}?schema=public
+      DATABASE_URL_TEST: postgresql://${POSTGRES_USER:-tracker}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tracker}_test?schema=public
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-tracker_session}
+      CSRF_COOKIE_NAME: ${CSRF_COOKIE_NAME:-tracker_csrf}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-168}
+      SESSION_IDLE_HOURS: ${SESSION_IDLE_HOURS:-24}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://localhost:5173,http://localhost:5173}
+      APP_URL: ${APP_URL:-https://localhost:5173}
+      TRUST_PROXY: 'true'
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-300}
+      AUTH_RATE_LIMIT_MAX: ${AUTH_RATE_LIMIT_MAX:-10}
+      PASSWORD_RESET_RATE_LIMIT_MAX: ${PASSWORD_RESET_RATE_LIMIT_MAX:-3}
+      ENABLE_PUBLIC_REGISTRATION: ${ENABLE_PUBLIC_REGISTRATION:-false}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+      UPLOAD_DIR: /app/uploads
+      STORAGE_PROVIDER: local
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@example.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?SEED_ADMIN_PASSWORD is required}
+      SEED_PROJECT_CODE: ${SEED_PROJECT_CODE:-WEBAPP}
+      SEED_TIMEZONE: ${SEED_TIMEZONE:-Asia/Manila}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-false}
+    # `npm ci` keeps the named node_modules volume in sync with the lockfile so
+    # adding a dependency never leaves the container with stale modules.
+    command: sh -c "npm ci --no-audit --no-fund && npx prisma generate && npx prisma migrate deploy && npx tsx prisma/seed.ts && npm run dev"
+    volumes:
+      - ./backend:/app
+      - backend_node_modules:/app/node_modules
+      - ./certs:/certs:ro
+    ports:
+      - '${API_PORT:-4000}:4000'
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4000/api/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+    networks: [tracker-net]
+
+  web:
+    build:
+      context: ./frontend
+      target: dev
+    environment:
+      VITE_API_URL: /api
+      VITE_API_PROXY_TARGET: http://api:4000
+      CERTS_DIR: /certs
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+      - ./certs:/certs:ro
+    ports:
+      - '${WEB_PORT:-5173}:5173'
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [tracker-net]
+
+volumes:
+  pgdata:
+  backend_node_modules:
+  frontend_node_modules:
+
+networks:
+  tracker-net:
+    driver: bridge

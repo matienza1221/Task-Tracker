@@ -1,0 +1,740 @@
+openapi: 3.1.0
+info:
+  title: Project Tracker API
+  version: 1.0.0
+  description: |
+    REST API for the Project Tracker (development task management).
+
+    Authentication uses an opaque session cookie (`tracker_session`, HttpOnly)
+    plus a double-submit CSRF token (`tracker_csrf` cookie, `X-CSRF-Token`
+    header on state-changing requests). Every response uses the same envelope.
+
+    Authorization is enforced per resource: projects the caller cannot see
+    return `404`, visible-but-forbidden actions return `403`.
+  contact:
+    name: Internal tooling
+servers:
+  - url: /api
+    description: Same origin (nginx or the Vite dev proxy)
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Projects
+  - name: Tasks
+  - name: Collaboration
+  - name: Dependencies
+  - name: Insights
+  - name: Admin
+  - name: Import & Export
+
+paths:
+  /health:
+    get:
+      tags: [Admin]
+      summary: Liveness and database connectivity
+      security: []
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '503': { description: Database unreachable }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Sign in (rate limited, locks after repeated failures)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 1 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current session
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current user with the permissions of their role
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Error' }
+  /auth/password/change:
+    post:
+      tags: [Auth]
+      summary: Change the password (revokes other sessions)
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /auth/password/forgot:
+    post:
+      tags: [Auth]
+      summary: Request a reset link (uniform response, no account enumeration)
+      security: []
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /auth/password/reset:
+    post:
+      tags: [Auth]
+      summary: Reset the password with a single-use token
+      security: []
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '400': { $ref: '#/components/responses/Error' }
+
+  /users:
+    get:
+      tags: [Users]
+      summary: List users (administrator)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - { name: search, in: query, schema: { type: string } }
+        - { name: role, in: query, schema: { $ref: '#/components/schemas/GlobalRole' } }
+        - { name: isActive, in: query, schema: { type: boolean } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Users]
+      summary: Create a user (returns a one-time temporary password when none is supplied)
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /users/lookup:
+    get:
+      tags: [Users]
+      summary: Minimal directory for member pickers (requires 2+ search characters)
+      parameters:
+        - { name: search, in: query, required: true, schema: { type: string, minLength: 2 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '403': { $ref: '#/components/responses/Error' }
+  /users/{userId}:
+    parameters: [{ $ref: '#/components/parameters/UserId' }]
+    get:
+      tags: [Users]
+      summary: Get a user
+      responses: { '200': { $ref: '#/components/responses/Success' }, '404': { $ref: '#/components/responses/Error' } }
+    patch:
+      tags: [Users]
+      summary: Update profile fields or activation
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    delete:
+      tags: [Users]
+      summary: Soft-delete a user (add ?purge=true to delete permanently)
+      parameters:
+        - { name: purge, in: query, schema: { type: boolean, default: false } }
+      responses: { '200': { $ref: '#/components/responses/Success' }, '403': { $ref: '#/components/responses/Error' } }
+  /users/{userId}/role:
+    patch:
+      tags: [Users]
+      summary: Change a global role (administrator; self-change and last-admin removal refused)
+      parameters: [{ $ref: '#/components/parameters/UserId' }]
+      responses: { '200': { $ref: '#/components/responses/Success' }, '403': { $ref: '#/components/responses/Error' }, '409': { $ref: '#/components/responses/Error' } }
+  /users/{userId}/reset-password:
+    post:
+      tags: [Users]
+      summary: Issue a one-time temporary password and revoke sessions
+      parameters: [{ $ref: '#/components/parameters/UserId' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+
+  /projects:
+    get:
+      tags: [Projects]
+      summary: List accessible projects
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+        - { name: statusKey, in: query, schema: { type: string } }
+        - { name: includeArchived, in: query, schema: { type: boolean } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Projects]
+      summary: Create a project (project:create)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name]
+              properties:
+                code: { type: string, pattern: '^[A-Z][A-Z0-9]{1,9}$' }
+                name: { type: string, minLength: 2, maxLength: 150 }
+                description: { type: string, nullable: true }
+                statusId: { type: string, format: uuid }
+                priorityId: { type: string, format: uuid }
+                startDate: { type: string, format: date }
+                targetDate: { type: string, format: date }
+                managerId: { type: string, format: uuid, nullable: true }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /projects/{projectId}:
+    parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+    get:
+      tags: [Projects]
+      summary: Project detail (404 when not visible)
+      responses: { '200': { $ref: '#/components/responses/Success' }, '404': { $ref: '#/components/responses/Error' } }
+    patch:
+      tags: [Projects]
+      summary: Update a project (project:update; code is immutable)
+      responses: { '200': { $ref: '#/components/responses/Success' }, '403': { $ref: '#/components/responses/Error' } }
+    delete:
+      tags: [Projects]
+      summary: Delete a project (project:delete, administrators)
+      parameters: [{ name: purge, in: query, schema: { type: boolean, default: false } }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /projects/{projectId}/archive:
+    post:
+      tags: [Projects]
+      summary: Archive a project
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /projects/{projectId}/unarchive:
+    post:
+      tags: [Projects]
+      summary: Restore a project from the archive
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /projects/{projectId}/members:
+    parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+    get:
+      tags: [Projects]
+      summary: List members
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Projects]
+      summary: Add a member (project:manage_members)
+      responses: { '201': { $ref: '#/components/responses/Success' }, '409': { $ref: '#/components/responses/Error' } }
+  /projects/{projectId}/members/{userId}:
+    parameters: [{ $ref: '#/components/parameters/ProjectId' }, { $ref: '#/components/parameters/UserId' }]
+    patch:
+      tags: [Projects]
+      summary: Change a project role (self and manager changes restricted)
+      responses: { '200': { $ref: '#/components/responses/Success' }, '403': { $ref: '#/components/responses/Error' } }
+    delete:
+      tags: [Projects]
+      summary: Remove a member
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /projects/{projectId}/milestones:
+    parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+    get:
+      tags: [Projects]
+      summary: List milestones with derived progress and task counts
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Projects]
+      summary: Create a milestone (project:manage_milestones)
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /projects/{projectId}/labels:
+    parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+    get:
+      tags: [Projects]
+      summary: List project and global labels
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Projects]
+      summary: Create a label (project:manage_labels)
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /projects/{projectId}/saved-views:
+    parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+    get:
+      tags: [Projects]
+      summary: List the caller's saved views for the project
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Projects]
+      summary: Save the current filter combination
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /projects/{projectId}/board:
+    get:
+      tags: [Tasks]
+      summary: Kanban board (columns of tasks ordered by board position)
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - { name: includeCancelled, in: query, schema: { type: boolean } }
+        - { name: scope, in: query, schema: { type: string, enum: [all, mine, unassigned] } }
+      responses: { '200': { $ref: '#/components/responses/Success' }, '404': { $ref: '#/components/responses/Error' } }
+  /projects/{projectId}/timeline:
+    get:
+      tags: [Insights]
+      summary: Gantt feed (project window, milestones, tasks with dates)
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /projects/{projectId}/analytics:
+    get:
+      tags: [Insights]
+      summary: Project analytics (distributions, trends, burndown, velocity, cycle time)
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - { name: days, in: query, schema: { type: integer, minimum: 7, maximum: 180, default: 30 } }
+      responses: { '200': { $ref: '#/components/responses/Success' }, '403': { $ref: '#/components/responses/Error' } }
+  /projects/{projectId}/activity:
+    get:
+      tags: [Insights]
+      summary: Project activity feed (includes task events)
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /projects/{projectId}/export.csv:
+    get:
+      tags: [Import & Export]
+      summary: Export all tasks as a spreadsheet-shaped CSV (export:run)
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200':
+          description: CSV attachment (formula injection is neutralised)
+          content:
+            text/csv:
+              schema: { type: string }
+        '403': { $ref: '#/components/responses/Error' }
+
+  /projects/{projectId}/tasks:
+    parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+    get:
+      tags: [Tasks]
+      summary: List tasks with filters, search and pagination
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: Matches key, title or description }
+        - { name: status, in: query, schema: { type: array, items: { type: string } }, description: Status keys (repeat or comma-separate) }
+        - { name: priority, in: query, schema: { type: array, items: { type: string } } }
+        - { name: type, in: query, schema: { type: array, items: { type: string } } }
+        - { name: assignee, in: query, schema: { type: array, items: { type: string, format: uuid } } }
+        - { name: label, in: query, schema: { type: array, items: { type: string, format: uuid } } }
+        - { name: milestone, in: query, schema: { type: array, items: { type: string, format: uuid } } }
+        - { name: scope, in: query, schema: { type: string, enum: [all, mine, unassigned] } }
+        - { name: subtasks, in: query, schema: { type: string, enum: [all, top, only] } }
+        - { name: overdue, in: query, schema: { type: boolean } }
+        - { name: blocked, in: query, schema: { type: boolean } }
+        - { name: includeCompleted, in: query, schema: { type: boolean } }
+        - { name: dueFrom, in: query, schema: { type: string, format: date } }
+        - { name: dueTo, in: query, schema: { type: string, format: date } }
+        - { name: progressMin, in: query, schema: { type: integer, minimum: 0, maximum: 100 } }
+        - { name: progressMax, in: query, schema: { type: integer, minimum: 0, maximum: 100 } }
+        - { name: sort, in: query, schema: { type: string, default: '-updatedAt' } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Tasks]
+      summary: Create a task (allocates the next project key)
+      responses: { '201': { $ref: '#/components/responses/Success' }, '403': { $ref: '#/components/responses/Error' } }
+  /tasks/{taskId}:
+    parameters: [{ $ref: '#/components/parameters/TaskId' }]
+    get:
+      tags: [Tasks]
+      summary: Task detail (subtasks, dependencies, labels, counts)
+      responses: { '200': { $ref: '#/components/responses/Success' }, '404': { $ref: '#/components/responses/Error' } }
+    patch:
+      tags: [Tasks]
+      summary: Update a task; requires the current `version` (409 on stale writes)
+      responses: { '200': { $ref: '#/components/responses/Success' }, '409': { $ref: '#/components/responses/Error' } }
+    delete:
+      tags: [Tasks]
+      summary: Soft-delete a task and its subtasks (task:delete)
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /tasks/{taskId}/status:
+    patch:
+      tags: [Tasks]
+      summary: Change status (task:update_status); applies completion side effects
+      parameters: [{ $ref: '#/components/parameters/TaskId' }]
+      responses: { '200': { $ref: '#/components/responses/Success' }, '409': { $ref: '#/components/responses/Error' } }
+  /tasks/{taskId}/assignee:
+    patch:
+      tags: [Tasks]
+      summary: Assign or unassign (developers may self-assign)
+      parameters: [{ $ref: '#/components/parameters/TaskId' }]
+      responses: { '200': { $ref: '#/components/responses/Success' }, '403': { $ref: '#/components/responses/Error' } }
+  /tasks/{taskId}/subtasks:
+    post:
+      tags: [Tasks]
+      summary: Create a subtask (one level of nesting)
+      parameters: [{ $ref: '#/components/parameters/TaskId' }]
+      responses: { '201': { $ref: '#/components/responses/Success' }, '422': { $ref: '#/components/responses/Error' } }
+  /tasks/{taskId}/move:
+    post:
+      tags: [Tasks]
+      summary: Board move — insert at a column index and renumber the column
+      parameters: [{ $ref: '#/components/parameters/TaskId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [statusId, targetIndex, version]
+              properties:
+                statusId: { type: string, format: uuid }
+                targetIndex: { type: integer, minimum: 0 }
+                version: { type: integer, minimum: 1 }
+      responses: { '200': { $ref: '#/components/responses/Success' }, '409': { $ref: '#/components/responses/Error' } }
+  /tasks/bulk:
+    post:
+      tags: [Tasks]
+      summary: Bulk set-status, set-priority, set-assignee or delete (atomic, 1–50 ids)
+      responses: { '200': { $ref: '#/components/responses/Success' }, '403': { $ref: '#/components/responses/Error' }, '404': { $ref: '#/components/responses/Error' } }
+  /tasks/{taskId}/dependencies:
+    parameters: [{ $ref: '#/components/parameters/TaskId' }]
+    get:
+      tags: [Dependencies]
+      summary: Blocked-by and blocks lists
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Dependencies]
+      summary: Add a blocker (cycles and self-dependencies rejected)
+      responses: { '201': { $ref: '#/components/responses/Success' }, '409': { $ref: '#/components/responses/Error' }, '422': { $ref: '#/components/responses/Error' } }
+  /tasks/{taskId}/dependencies/{dependsOnTaskId}:
+    delete:
+      tags: [Dependencies]
+      summary: Remove a blocker edge
+      parameters: [{ $ref: '#/components/parameters/TaskId' }, { name: dependsOnTaskId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /tasks/{taskId}/comments:
+    parameters: [{ $ref: '#/components/parameters/TaskId' }]
+    get:
+      tags: [Collaboration]
+      summary: List comments
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Collaboration]
+      summary: Add a comment (optionally mentioning project members)
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /comments/{commentId}:
+    parameters: [{ name: commentId, in: path, required: true, schema: { type: string, format: uuid } }]
+    patch:
+      tags: [Collaboration]
+      summary: Edit a comment (author or moderator)
+      responses: { '200': { $ref: '#/components/responses/Success' }, '403': { $ref: '#/components/responses/Error' } }
+    delete:
+      tags: [Collaboration]
+      summary: Delete a comment (author or moderator)
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /tasks/{taskId}/attachments:
+    parameters: [{ $ref: '#/components/parameters/TaskId' }]
+    get:
+      tags: [Collaboration]
+      summary: List attachments
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Collaboration]
+      summary: Upload one file (magic-byte allowlist, size limit)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses: { '201': { $ref: '#/components/responses/Success' }, '415': { $ref: '#/components/responses/Error' }, '413': { $ref: '#/components/responses/Error' } }
+  /attachments/{attachmentId}/download:
+    get:
+      tags: [Collaboration]
+      summary: Authorized download (always served as an attachment)
+      parameters: [{ name: attachmentId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200': { description: File bytes }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /my/tasks:
+    get:
+      tags: [Tasks]
+      summary: Tasks assigned to the caller across accessible projects
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /search:
+    get:
+      tags: [Insights]
+      summary: Command-palette search over accessible tasks and projects
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 20, default: 6 } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /calendar:
+    get:
+      tags: [Insights]
+      summary: Calendar window (tasks, milestones, project targets)
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { name: projectId, in: query, schema: { type: string, format: uuid } }
+        - { name: scope, in: query, schema: { type: string, enum: [all, mine] } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /dashboard/summary:
+    get:
+      tags: [Insights]
+      summary: Personal dashboard aggregates (projects, tasks, my work, milestones)
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /team/workload:
+    get:
+      tags: [Insights]
+      summary: Per-developer workload (workload:view)
+      parameters: [{ name: projectId, in: query, schema: { type: string, format: uuid } }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /notifications:
+    get:
+      tags: [Collaboration]
+      summary: Own notifications with unread count
+      parameters:
+        - { name: unreadOnly, in: query, schema: { type: boolean } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /notifications/{notificationId}/read:
+    patch:
+      tags: [Collaboration]
+      summary: Mark one notification read or unread (owner only)
+      parameters: [{ name: notificationId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '200': { $ref: '#/components/responses/Success' }, '404': { $ref: '#/components/responses/Error' } }
+  /notifications/read-all:
+    post:
+      tags: [Collaboration]
+      summary: Mark every notification read
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+
+  /meta/vocabularies:
+    get:
+      tags: [Admin]
+      summary: Active statuses, priorities, types and project statuses for forms
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/vocabularies:
+    get:
+      tags: [Admin]
+      summary: Full vocabulary catalogue with usage counts (vocabulary:manage)
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/vocabularies/{kind}:
+    post:
+      tags: [Admin]
+      summary: Create a vocabulary entry (task-statuses, task-priorities, task-types, project-statuses)
+      parameters: [{ name: kind, in: path, required: true, schema: { type: string } }]
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /admin/vocabularies/{kind}/{id}:
+    parameters:
+      - { name: kind, in: path, required: true, schema: { type: string } }
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Admin]
+      summary: Update an entry (name, colour, order, category, default, active)
+      responses: { '200': { $ref: '#/components/responses/Success' }, '409': { $ref: '#/components/responses/Error' } }
+    delete:
+      tags: [Admin]
+      summary: Deactivate an entry (add ?hard=true to delete unused, non-built-in entries)
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: Audit trail with filters and pagination (audit:view)
+      parameters:
+        - { name: action, in: query, schema: { type: string } }
+        - { name: actorEmail, in: query, schema: { type: string } }
+        - { name: resourceType, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: format, in: query, schema: { type: string, enum: [json, csv], default: json } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/imports:
+    get:
+      tags: [Import & Export]
+      summary: Recent import jobs (import:run)
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Import & Export]
+      summary: Upload a CSV/TSV/XLSX file (header auto-detected, up to 5,000 rows)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses: { '201': { $ref: '#/components/responses/Success' }, '422': { $ref: '#/components/responses/Error' } }
+  /admin/imports/{jobId}:
+    get:
+      tags: [Import & Export]
+      summary: Import job with row statuses
+      parameters: [{ name: jobId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/imports/{jobId}/preview:
+    post:
+      tags: [Import & Export]
+      summary: Validate the mapped rows without writing anything
+      parameters: [{ name: jobId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '200': { $ref: '#/components/responses/Success' }, '409': { $ref: '#/components/responses/Error' } }
+  /admin/imports/{jobId}/commit:
+    post:
+      tags: [Import & Export]
+      summary: Create tasks from the valid rows (idempotent per job)
+      parameters: [{ name: jobId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: tracker_session
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: pageSize
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 25 }
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Success:
+      description: Successful response (envelope)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/SuccessEnvelope' }
+    Error:
+      description: Error response (envelope)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    SuccessEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, const: true }
+        data: {}
+        message: { type: string }
+        meta:
+          type: object
+          properties:
+            requestId: { type: string }
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
+            totalPages: { type: integer }
+            unreadCount: { type: integer }
+    ErrorEnvelope:
+      type: object
+      required: [success, error]
+      properties:
+        success: { type: boolean, const: false }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                [VALIDATION_ERROR, UNAUTHENTICATED, INVALID_CREDENTIALS, ACCOUNT_LOCKED, FORBIDDEN, CSRF_INVALID,
+                 NOT_FOUND, CONFLICT, RATE_LIMITED, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, INTERNAL_ERROR]
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  path: { type: string }
+                  message: { type: string }
+                  code: { type: string }
+        meta:
+          type: object
+          properties:
+            requestId: { type: string }
+    GlobalRole:
+      type: string
+      enum: [ADMIN, PROJECT_MANAGER, DEVELOPER, VIEWER]
+    ProjectRole:
+      type: string
+      enum: [MANAGER, DEVELOPER, VIEWER]
+    TaskStatusCategory:
+      type: string
+      enum: [BACKLOG, TODO, IN_PROGRESS, REVIEW, TESTING, BLOCKED, DONE, CANCELLED]
+    Task:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        key: { type: string, example: WEBAPP-142 }
+        displayKey: { type: string, example: WEBAPP-142-1 }
+        number: { type: integer }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        project: { type: object, properties: { id: { type: string, format: uuid }, code: { type: string }, name: { type: string } } }
+        status: { type: object, properties: { id: { type: string }, key: { type: string }, name: { type: string }, category: { $ref: '#/components/schemas/TaskStatusCategory' }, color: { type: string } } }
+        priority: { type: object, properties: { id: { type: string }, key: { type: string }, name: { type: string }, weight: { type: integer } } }
+        type: { type: object, properties: { id: { type: string }, key: { type: string }, name: { type: string } } }
+        assignee: { type: object, nullable: true, properties: { id: { type: string }, displayName: { type: string }, email: { type: string }, avatarUrl: { type: string, nullable: true } } }
+        startDate: { type: string, format: date, nullable: true }
+        dueDate: { type: string, format: date, nullable: true }
+        completedAt: { type: string, format: date-time, nullable: true }
+        estimatedHours: { type: number, nullable: true }
+        actualHours: { type: number }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        progressMode: { type: string, enum: [AUTO, MANUAL] }
+        nextStep: { type: string, nullable: true }
+        verificationNote: { type: string, nullable: true }
+        codeReferences: { type: array, items: { type: string } }
+        blockedBy: { type: array, items: { $ref: '#/components/schemas/DependencyRef' } }
+        isBlocked: { type: boolean }
+        subtaskCount: { type: integer }
+        completedSubtaskCount: { type: integer }
+        isOverdue: { type: boolean }
+        version: { type: integer }
+    DependencyRef:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        key: { type: string }
+        title: { type: string }
+        status: { type: object, properties: { name: { type: string }, category: { type: string }, color: { type: string } } }
+        project: { type: object, properties: { id: { type: string }, code: { type: string } } }
+    Notification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type:
+          type: string
+          enum: [TASK_ASSIGNED, TASK_STATUS_CHANGED, TASK_COMMENTED, TASK_MENTIONED, TASK_DUE_SOON, TASK_OVERDUE, PROJECT_MEMBER_ADDED]
+        title: { type: string }
+        body: { type: string, nullable: true }
+        taskId: { type: string, format: uuid, nullable: true }
+        projectId: { type: string, format: uuid, nullable: true }
+        isRead: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    ImportRow:
+      type: object
+      properties:
+        rowNumber: { type: integer }
+        status: { type: string, enum: [PENDING, VALID, INVALID, IMPORTED, SKIPPED] }
+        errors: { type: array, items: { type: object, properties: { path: { type: string }, message: { type: string } } } }
+        normalized: { type: object, nullable: true }
+
+security:
+  - sessionCookie: []

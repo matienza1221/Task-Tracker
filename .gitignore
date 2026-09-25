@@ -1,0 +1,30 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# TLS material
+certs/
+*.pem
+*.key
+*.crt
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+coverage/
+
+# Runtime data
+uploads/
+backups/
+*.log
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+.test-uploads/
