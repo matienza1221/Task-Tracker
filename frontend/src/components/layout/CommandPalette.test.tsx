@@ -103,6 +103,7 @@ describe('CommandPalette', () => {
 
     await user.keyboard('{Control>}k{/Control}');
     await screen.findByRole('dialog');
+    await waitFor(() => expect(screen.getByLabelText('Search tasks, projects and actions')).toHaveFocus());
     await user.keyboard('{ArrowDown}');
     await user.keyboard('{Enter}');
 

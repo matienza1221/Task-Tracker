@@ -104,15 +104,16 @@ export async function getUser(userId: string): Promise<UserSummary> {
 
 /** Minimal, non-sensitive directory used by project member pickers. */
 export async function lookupUsers(query: LookupUsersQuery) {
+  const where: Prisma.UserWhereInput = { deletedAt: null, isActive: true };
+  if (query.search) {
+    where.OR = [
+      { displayName: { contains: query.search, mode: 'insensitive' } },
+      { email: { contains: query.search, mode: 'insensitive' } },
+    ];
+  }
+
   return prisma.user.findMany({
-    where: {
-      deletedAt: null,
-      isActive: true,
-      OR: [
-        { displayName: { contains: query.search, mode: 'insensitive' } },
-        { email: { contains: query.search, mode: 'insensitive' } },
-      ],
-    },
+    where,
     select: { id: true, displayName: true, email: true, globalRole: true, avatarUrl: true },
     orderBy: { displayName: 'asc' },
     take: query.limit,

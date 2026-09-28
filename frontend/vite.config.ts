@@ -18,12 +18,26 @@ export default defineConfig(({ mode }) => {
       ? { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) }
       : undefined;
 
+  // The source tree is bind-mounted from the host, so native filesystem events
+  // do not reach the container reliably (Windows + Docker Desktop). Polling is
+  // what makes hot reload see edits without restarting the container.
+  const hmrHost = env.VITE_HMR_HOST || 'localhost';
+  const hmrClientPort = Number(env.VITE_HMR_CLIENT_PORT || 5173);
+  const hmr = https
+    ? { protocol: 'wss' as const, host: hmrHost, clientPort: hmrClientPort }
+    : { protocol: 'ws' as const, host: hmrHost, clientPort: hmrClientPort };
+
   return {
     plugins: [react(), tailwindcss()],
     server: {
       host: true,
       port: 5173,
       https,
+      watch: {
+        usePolling: true,
+        interval: 300,
+      },
+      hmr,
       proxy: {
         '/api': {
           target: proxyTarget,

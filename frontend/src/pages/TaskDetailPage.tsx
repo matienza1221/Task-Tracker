@@ -6,6 +6,7 @@ import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { Card, CardBody, CardHeader } from '../components/ui/Card';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { DatePicker } from '../components/ui/DatePicker';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { ProgressBar } from '../components/ui/ProgressBar';
@@ -31,8 +32,8 @@ import { toast } from '../stores/toastStore';
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-3 py-2">
-      <span className="pt-1 text-xs font-medium tracking-wide text-slate-500 uppercase dark:text-slate-400">
+    <div className="flex items-start gap-3 py-2">
+      <span className="w-36 shrink-0 pt-1 text-xs leading-tight font-medium tracking-wide text-slate-500 uppercase dark:text-slate-400">
         {label}
       </span>
       <div className="min-w-0 flex-1 text-right text-sm text-slate-800 dark:text-slate-100">{children}</div>
@@ -389,12 +390,11 @@ export function TaskDetailPage() {
 
               <DetailRow label="Start date">
                 {canUpdate ? (
-                  <Input
+                  <DatePicker
                     label=""
                     aria-label="Start date"
-                    type="date"
                     value={task.startDate ?? ''}
-                    onChange={(event) => save({ startDate: event.target.value || undefined }, 'Start date updated')}
+                    onChange={(value) => save({ startDate: value || undefined }, 'Start date updated')}
                   />
                 ) : (
                   formatDate(task.startDate)
@@ -403,12 +403,11 @@ export function TaskDetailPage() {
 
               <DetailRow label="Due date">
                 {canUpdate ? (
-                  <Input
+                  <DatePicker
                     label=""
                     aria-label="Due date"
-                    type="date"
                     value={task.dueDate ?? ''}
-                    onChange={(event) => save({ dueDate: event.target.value || undefined }, 'Due date updated')}
+                    onChange={(value) => save({ dueDate: value || undefined }, 'Due date updated')}
                   />
                 ) : (
                   <span className={task.isOverdue ? 'font-medium text-red-600 dark:text-red-400' : undefined}>

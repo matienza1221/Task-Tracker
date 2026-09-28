@@ -6,6 +6,7 @@ import { ProgressStat } from '../../ui/ProgressBar';
 import { Button } from '../../ui/Button';
 import { Card, CardBody, CardHeader } from '../../ui/Card';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
+import { DateField } from '../../ui/DateField';
 import { Input } from '../../ui/Input';
 import { Modal } from '../../ui/Modal';
 import { Select } from '../../ui/Select';
@@ -45,6 +46,7 @@ function MilestoneForm({
   const {
     register,
     handleSubmit,
+    control,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<MilestoneFormValues>({
@@ -101,7 +103,7 @@ function MilestoneForm({
       <Input label="Milestone name" placeholder="MVP Release" error={errors.name?.message} {...register('name')} />
       <Textarea label="Description" rows={2} error={errors.description?.message} {...register('description')} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Input label="Target date" type="date" error={errors.targetDate?.message} {...register('targetDate')} />
+        <DateField control={control} name="targetDate" label="Target date" error={errors.targetDate?.message} />
         <Select label="Status" options={MILESTONE_STATUS_OPTIONS} error={errors.status?.message} {...register('status')} />
       </div>
       <div className="flex justify-end gap-2">

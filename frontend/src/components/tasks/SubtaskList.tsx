@@ -14,11 +14,43 @@ import { TaskStatusBadge } from './TaskBadges';
 import { toast } from '../../stores/toastStore';
 import { cn } from '../../lib/cn';
 
+/** Quick status change for one subtask; the mutation must target the subtask itself. */
+function SubtaskStatusSelect({
+  subtask,
+  projectId,
+  statusOptions,
+}: {
+  subtask: Task;
+  projectId: string;
+  statusOptions: { value: string; label: string }[];
+}) {
+  const updateStatus = useUpdateTaskStatus(subtask.id, projectId);
+
+  return (
+    <Select
+      label=""
+      aria-label={`Status for ${subtask.title}`}
+      className="w-40"
+      options={statusOptions}
+      value={subtask.status.id}
+      disabled={updateStatus.isPending}
+      onChange={(event) =>
+        updateStatus.mutate(
+          { statusId: event.target.value, version: subtask.version },
+          {
+            onSuccess: () => toast.success('Subtask updated', subtask.displayKey),
+            onError: (error) => toast.error('Could not update subtask', error.message),
+          },
+        )
+      }
+    />
+  );
+}
+
 /** Subtask list with quick status changes and inline creation. */
 export function SubtaskList({ task, canEdit }: { task: Task; canEdit: boolean }) {
   const vocab = useVocabularies();
   const createSubtask = useCreateSubtask(task.id, task.project.id);
-  const updateStatus = useUpdateTaskStatus(task.id, task.project.id);
   const [adding, setAdding] = useState(false);
 
   const {
@@ -92,23 +124,7 @@ export function SubtaskList({ task, canEdit }: { task: Task; canEdit: boolean })
                 </span>
               </Link>
               {canEdit ? (
-                <Select
-                  label=""
-                  aria-label={`Status for ${subtask.title}`}
-                  className="w-40"
-                  options={statusOptions}
-                  value={subtask.status.id}
-                  disabled={updateStatus.isPending}
-                  onChange={(event) =>
-                    updateStatus.mutate(
-                      { statusId: event.target.value, version: subtask.version },
-                      {
-                        onSuccess: () => toast.success('Subtask updated', subtask.displayKey),
-                        onError: (error) => toast.error('Could not update subtask', error.message),
-                      },
-                    )
-                  }
-                />
+                <SubtaskStatusSelect subtask={subtask} projectId={task.project.id} statusOptions={statusOptions} />
               ) : (
                 <TaskStatusBadge status={subtask.status} />
               )}

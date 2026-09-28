@@ -20,7 +20,9 @@ export const listUsersQuerySchema = z.object({
 });
 
 export const lookupUsersQuerySchema = z.object({
-  search: z.string().trim().min(2, 'Search requires at least 2 characters.').max(120),
+  // Empty is allowed so pickers can show a default list of selectable users
+  // before the caller types anything.
+  search: z.string().trim().max(120).default(''),
   limit: z.coerce.number().int().min(1).max(20).default(10),
 });
 

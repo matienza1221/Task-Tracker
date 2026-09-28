@@ -102,6 +102,14 @@ const CREATED_TASK = {
   updatedAt: new Date().toISOString(),
 } satisfies Task;
 
+/** Opens a DatePicker and clicks the given day in the month it shows. */
+async function pickDay(user: ReturnType<typeof userEvent.setup>, label: string, day: number) {
+  await user.click(screen.getByLabelText(label));
+  const suffix =
+    day % 10 === 1 && day !== 11 ? 'st' : day % 10 === 2 && day !== 12 ? 'nd' : day % 10 === 3 && day !== 13 ? 'rd' : 'th';
+  await user.click(screen.getByRole('button', { name: new RegExp(`\\b${day}${suffix}, \\d{4}$`) }));
+}
+
 function renderForm(onSuccess = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   render(
@@ -151,8 +159,8 @@ describe('TaskForm', () => {
     renderForm();
 
     await user.type(screen.getByLabelText('Title'), 'Scheduling test');
-    await user.type(screen.getByLabelText('Start date'), '2026-05-01');
-    await user.type(screen.getByLabelText('Due date'), '2026-01-01');
+    await pickDay(user, 'Start date', 15);
+    await pickDay(user, 'Due date', 10);
     await user.click(screen.getByRole('button', { name: 'Create task' }));
 
     expect(await screen.findByText('Due date cannot be before the start date.')).toBeInTheDocument();

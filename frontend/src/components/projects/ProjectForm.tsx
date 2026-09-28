@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '../ui/Button';
+import { DateField } from '../ui/DateField';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
@@ -145,8 +146,8 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Input label="Start date" type="date" error={errors.startDate?.message} {...register('startDate')} />
-        <Input label="Target date" type="date" error={errors.targetDate?.message} {...register('targetDate')} />
+        <DateField control={control} name="startDate" label="Start date" error={errors.startDate?.message} />
+        <DateField control={control} name="targetDate" label="Target date" error={errors.targetDate?.message} />
       </div>
 
       <Controller

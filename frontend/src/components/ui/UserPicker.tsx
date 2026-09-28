@@ -13,28 +13,52 @@ export interface UserPickerProps {
   error?: string;
   placeholder?: string;
   hint?: string;
+  disabled?: boolean;
+  /** Users to hide from the dropdown (e.g. people already on the project). */
+  excludeIds?: string[];
+  /** How many users to load in the dropdown. */
+  limit?: number;
 }
 
 /**
- * Type-ahead user picker backed by the minimal directory endpoint.
- * Requires at least two characters, matching the server-side validation.
+ * User picker backed by the minimal directory endpoint. Focusing the field
+ * opens a dropdown of selectable users so members can be added with a click;
+ * typing filters the list by name or email.
  */
-export function UserPicker({ label, value, onChange, error, placeholder, hint }: UserPickerProps) {
+export function UserPicker({
+  label,
+  value,
+  onChange,
+  error,
+  placeholder,
+  hint,
+  disabled,
+  excludeIds = [],
+  limit = 10,
+}: UserPickerProps) {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { data, isFetching } = useUserLookup(search);
+  const { data, isFetching } = useUserLookup(search, { enabled: open && !disabled, limit });
 
   useEffect(() => {
     if (!open) return undefined;
     const onPointerDown = (event: MouseEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
     };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, [open]);
 
-  const results: UserLookupResult[] = data?.users ?? [];
+  const results: UserLookupResult[] = (data?.users ?? []).filter((user) => !excludeIds.includes(user.id));
+  const trimmed = search.trim();
 
   return (
     <div className="space-y-1.5" ref={containerRef}>
@@ -66,9 +90,12 @@ export function UserPicker({ label, value, onChange, error, placeholder, hint }:
           <input
             type="text"
             value={search}
-            placeholder={placeholder ?? 'Type at least 2 characters…'}
+            placeholder={placeholder ?? 'Search by name or email…'}
+            disabled={disabled}
+            role="combobox"
             aria-expanded={open}
             aria-autocomplete="list"
+            aria-controls="user-picker-results"
             onChange={(event) => {
               setSearch(event.target.value);
               setOpen(true);
@@ -77,23 +104,27 @@ export function UserPicker({ label, value, onChange, error, placeholder, hint }:
             className={cn(
               'block w-full rounded-lg border bg-white py-2 pr-3 pl-9 text-sm text-slate-900 shadow-sm',
               'focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40',
-              'dark:bg-slate-900 dark:text-slate-100',
+              'disabled:cursor-not-allowed disabled:bg-slate-100',
+              'dark:bg-slate-900 dark:text-slate-100 dark:disabled:bg-slate-800',
               error ? 'border-red-500' : 'border-slate-300 dark:border-slate-700',
             )}
           />
-          {open && search.trim().length >= 2 && (
+          {open && (
             <ul
+              id="user-picker-results"
               role="listbox"
               aria-label={`${label} results`}
               className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900"
             >
-              {isFetching && (
+              {isFetching && results.length === 0 && (
                 <li className="px-3 py-2">
                   <Spinner className="text-xs" />
                 </li>
               )}
               {!isFetching && results.length === 0 && (
-                <li className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">No matching active users.</li>
+                <li className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
+                  {trimmed ? 'No matching users.' : 'No users available to add.'}
+                </li>
               )}
               {results.map((user) => (
                 <li key={user.id} role="option" aria-selected={false}>
@@ -101,6 +132,7 @@ export function UserPicker({ label, value, onChange, error, placeholder, hint }:
                     type="button"
                     onClick={() => {
                       onChange(user);
+                      setSearch('');
                       setOpen(false);
                     }}
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800"

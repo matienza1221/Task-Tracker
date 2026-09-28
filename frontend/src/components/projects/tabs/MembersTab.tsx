@@ -68,7 +68,13 @@ export function MembersTab({ project }: { project: Project }) {
           <CardBody className="space-y-3">
             {formError && <Alert variant="error">{formError}</Alert>}
             <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto] sm:items-end">
-              <UserPicker label="User" value={selected} onChange={setSelected} />
+              <UserPicker
+                label="User"
+                value={selected}
+                onChange={setSelected}
+                excludeIds={(members.data?.members ?? []).map((member) => member.userId)}
+                limit={20}
+              />
               <Select
                 label="Project role"
                 options={PROJECT_ROLE_OPTIONS}

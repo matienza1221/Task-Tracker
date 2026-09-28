@@ -123,6 +123,18 @@ export const ChevronDownIcon = (props: IconProps) => (
   </Svg>
 );
 
+export const ChevronLeftIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="m15 18-6-6 6-6" />
+  </Svg>
+);
+
+export const ChevronRightIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="m9 18 6-6-6-6" />
+  </Svg>
+);
+
 export const LockIcon = (props: IconProps) => (
   <Svg {...props}>
     <rect x="3" y="11" width="18" height="11" rx="2" />

@@ -55,11 +55,22 @@ describe('GET /api/users/lookup', () => {
     );
   });
 
-  it('requires a search term of at least two characters', async () => {
+  it('returns a default list of selectable users when no search term is given', async () => {
     const { client } = await createUserWithSession(app, { email: 'pm@example.com', globalRole: 'PROJECT_MANAGER' });
+    await createTestUser({ email: 'dev@example.com', displayName: 'Dev Person' });
+
+    const response = await authed(app, client).get('/api/users/lookup');
+    expect(response.status).toBe(200);
+    expect(response.body.data.users.some((user: { email: string }) => user.email === 'dev@example.com')).toBe(true);
+  });
+
+  it('matches on a single character', async () => {
+    const { client } = await createUserWithSession(app, { email: 'pm@example.com', globalRole: 'PROJECT_MANAGER' });
+    await createTestUser({ email: 'dev@example.com', displayName: 'Dev Person' });
+
     const response = await authed(app, client).get('/api/users/lookup?search=d');
-    expect(response.status).toBe(422);
-    expect(response.body.error.details[0].path).toBe('search');
+    expect(response.status).toBe(200);
+    expect(response.body.data.users.some((user: { email: string }) => user.email === 'dev@example.com')).toBe(true);
   });
 
   it('forbids viewers', async () => {

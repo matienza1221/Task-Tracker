@@ -12,7 +12,7 @@ import {
 import type { UserFilters } from './types';
 
 export const usersListQueryKey = (filters: UserFilters) => ['users', 'list', filters] as const;
-export const userLookupQueryKey = (search: string) => ['users', 'lookup', search] as const;
+export const userLookupQueryKey = (search: string, limit: number) => ['users', 'lookup', search, limit] as const;
 
 export function useUsers(filters: UserFilters) {
   return useQuery({
@@ -22,13 +22,18 @@ export function useUsers(filters: UserFilters) {
   });
 }
 
-/** Type-ahead directory used by member/managers pickers. */
-export function useUserLookup(search: string) {
+/**
+ * Type-ahead directory used by member/manager pickers. An empty search returns
+ * a default list of selectable users so pickers can show a dropdown before the
+ * caller types; `enabled` lets the picker defer the request until it opens.
+ */
+export function useUserLookup(search: string, options: { enabled?: boolean; limit?: number } = {}) {
   const term = search.trim();
+  const limit = options.limit ?? 10;
   return useQuery({
-    queryKey: userLookupQueryKey(term),
-    queryFn: () => fetchUserLookup(term),
-    enabled: term.length >= 2,
+    queryKey: userLookupQueryKey(term, limit),
+    queryFn: () => fetchUserLookup(term, limit),
+    enabled: options.enabled ?? true,
     staleTime: 60_000,
   });
 }

@@ -14,8 +14,8 @@ export interface PaginationMeta {
 export const fetchUsers = (filters: UserFilters) =>
   apiGetEnvelope<{ users: UserSummary[] }>(`/users${toQueryString({ ...filters })}`);
 
-export const fetchUserLookup = (search: string) =>
-  apiGet<{ users: UserLookupResult[] }>(`/users/lookup${toQueryString({ search })}`);
+export const fetchUserLookup = (search: string, limit?: number) =>
+  apiGet<{ users: UserLookupResult[] }>(`/users/lookup${toQueryString({ search, limit })}`);
 
 export const createUser = (input: Omit<CreateUserFormValues, 'password'> & { password?: string }) =>
   apiPost<{ user: UserSummary; temporaryPassword: string | null }>('/users', input);

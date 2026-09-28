@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Card, CardBody, CardHeader } from '../components/ui/Card';
+import { DatePicker } from '../components/ui/DatePicker';
 import { Input } from '../components/ui/Input';
 import { Pagination } from '../components/ui/Pagination';
 import { Select } from '../components/ui/Select';
@@ -108,20 +109,10 @@ export function AdminAuditPage() {
           />
         </div>
         <div className="w-40">
-          <Input
-            label="From"
-            type="date"
-            value={filters.from ?? ''}
-            onChange={(event) => update({ from: event.target.value || undefined })}
-          />
+          <DatePicker label="From" value={filters.from ?? ''} onChange={(value) => update({ from: value || undefined })} />
         </div>
         <div className="w-40">
-          <Input
-            label="To"
-            type="date"
-            value={filters.to ?? ''}
-            onChange={(event) => update({ to: event.target.value || undefined })}
-          />
+          <DatePicker label="To" value={filters.to ?? ''} onChange={(value) => update({ to: value || undefined })} />
         </div>
         <Button
           variant="ghost"
