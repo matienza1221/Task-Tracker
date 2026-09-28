@@ -35,7 +35,7 @@ server.listen(env.PORT, () => {
       tls: server instanceof https.Server,
       publicRegistration: env.ENABLE_PUBLIC_REGISTRATION,
     },
-    'Project Tracker API listening',
+    'TeamBoard API listening',
   );
 });
 

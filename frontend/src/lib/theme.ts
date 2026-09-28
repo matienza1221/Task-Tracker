@@ -1,6 +1,6 @@
 export type Theme = 'light' | 'dark' | 'system';
 
-const THEME_KEY = 'tracker-theme';
+const THEME_KEY = 'teamboard-theme';
 
 function prefersDark(): boolean {
   try {
@@ -31,6 +31,24 @@ export function storeTheme(theme: Theme): void {
   } catch {
     /* ignore */
   }
+}
+
+export const THEME_TRANSITION_CLASS = 'theme-transition';
+const THEME_TRANSITION_MS = 250;
+
+let transitionTimer: ReturnType<typeof setTimeout> | undefined;
+
+/**
+ * Runs `apply` with a short cross-fade enabled on the document so switching
+ * themes eases instead of snapping. The class is removed again afterwards so
+ * normal interactions keep their own transitions.
+ */
+export function withThemeTransition(apply: () => void): void {
+  const root = document.documentElement;
+  root.classList.add(THEME_TRANSITION_CLASS);
+  apply();
+  if (transitionTimer) clearTimeout(transitionTimer);
+  transitionTimer = setTimeout(() => root.classList.remove(THEME_TRANSITION_CLASS), THEME_TRANSITION_MS);
 }
 
 /** Re-applies the theme when the OS preference changes (only affects 'system'). */

@@ -118,11 +118,11 @@ export function Sidebar() {
           aria-hidden="true"
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white"
         >
-          PT
+          TB
         </span>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">Project Tracker</p>
+            <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">TeamBoard</p>
             <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">Development task management</p>
           </div>
         )}

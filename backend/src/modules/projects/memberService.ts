@@ -2,9 +2,11 @@ import type { ProjectRole, User } from '@prisma/client';
 import { prisma } from '../../db/prisma';
 import { assertProjectPermission } from '../../lib/access';
 import { conflict, forbidden, notFound } from '../../lib/errors';
+import { isOverdue } from '../../lib/progress';
 import { recordAudit } from '../audit/service';
 import { recordActivity } from '../activity/service';
 import { createNotification } from '../notifications/service';
+import { toDateOnly } from './dto';
 
 export interface MemberDto {
   userId: string;
@@ -16,6 +18,31 @@ export interface MemberDto {
   isProjectManager: boolean;
   addedBy: { id: string; displayName: string } | null;
   createdAt: string;
+}
+
+export interface MemberTaskDto {
+  id: string;
+  displayKey: string;
+  title: string;
+  status: { id: string; key: string; name: string; category: string; color: string };
+  priority: { id: string; key: string; name: string; weight: number; color: string };
+  progress: number;
+  progressMode: string;
+  dueDate: string | null;
+  isOverdue: boolean;
+}
+
+export interface MemberProgressDto {
+  userId: string;
+  assigned: number;
+  completed: number;
+  open: number;
+  overdue: number;
+  /** Share of assigned tasks in a DONE status (0–100). */
+  completionPercent: number;
+  /** Mean per-task progress (0–100). */
+  averageProgress: number;
+  tasks: MemberTaskDto[];
 }
 
 export async function listMembers(user: User, projectId: string): Promise<MemberDto[]> {
@@ -43,6 +70,91 @@ export async function listMembers(user: User, projectId: string): Promise<Member
       addedBy: member.addedBy,
       createdAt: member.createdAt.toISOString(),
     }));
+}
+
+/**
+ * Per-member task breakdown for a project: how many tasks are assigned, how
+ * many are done and the individual tasks with their progress. Any member who
+ * can view the project's tasks can read it.
+ */
+export async function listMemberProgress(user: User, projectId: string): Promise<MemberProgressDto[]> {
+  const access = await assertProjectPermission(user, projectId, 'task:view');
+  const id = access.project.id;
+
+  const [members, assignedTasks, projectTasks] = await Promise.all([
+    prisma.projectMember.findMany({ where: { projectId: id }, select: { userId: true } }),
+    prisma.task.findMany({
+      where: { projectId: id, deletedAt: null, assigneeId: { not: null } },
+      select: {
+        id: true,
+        key: true,
+        number: true,
+        title: true,
+        progress: true,
+        progressMode: true,
+        dueDate: true,
+        completedAt: true,
+        assigneeId: true,
+        parentTaskId: true,
+        status: { select: { id: true, key: true, name: true, category: true, color: true } },
+        priority: { select: { id: true, key: true, name: true, weight: true, color: true } },
+      },
+      orderBy: [{ dueDate: 'asc' }, { number: 'asc' }],
+    }),
+    prisma.task.findMany({
+      where: { projectId: id, deletedAt: null },
+      select: { id: true, key: true, parentTaskId: true, number: true },
+    }),
+  ]);
+
+  // Subtask display keys are `PARENT-<sibling index>`, matching the task DTOs.
+  const keyById = new Map(projectTasks.map((task) => [task.id, task.key]));
+  const siblingNumbers = new Map<string, number[]>();
+  for (const task of projectTasks) {
+    if (!task.parentTaskId) continue;
+    const list = siblingNumbers.get(task.parentTaskId) ?? [];
+    list.push(task.number);
+    siblingNumbers.set(task.parentTaskId, list);
+  }
+  for (const list of siblingNumbers.values()) list.sort((a, b) => a - b);
+
+  const tasksByUser = new Map<string, MemberTaskDto[]>();
+  for (const task of assignedTasks) {
+    if (!task.assigneeId) continue;
+    const parentKey = task.parentTaskId ? keyById.get(task.parentTaskId) ?? null : null;
+    const displayKey = parentKey
+      ? `${parentKey}-${(siblingNumbers.get(task.parentTaskId as string) ?? []).indexOf(task.number) + 1}`
+      : task.key;
+    const list = tasksByUser.get(task.assigneeId) ?? [];
+    list.push({
+      id: task.id,
+      displayKey,
+      title: task.title,
+      status: task.status,
+      priority: task.priority,
+      progress: task.progress,
+      progressMode: task.progressMode,
+      dueDate: toDateOnly(task.dueDate),
+      isOverdue: isOverdue(task.dueDate, task.status.category, task.completedAt),
+    });
+    tasksByUser.set(task.assigneeId, list);
+  }
+
+  return members.map(({ userId }) => {
+    const tasks = tasksByUser.get(userId) ?? [];
+    const assigned = tasks.length;
+    const completed = tasks.filter((task) => task.status.category === 'DONE').length;
+    return {
+      userId,
+      assigned,
+      completed,
+      open: assigned - completed,
+      overdue: tasks.filter((task) => task.isOverdue).length,
+      completionPercent: assigned ? Math.round((completed / assigned) * 100) : 0,
+      averageProgress: assigned ? Math.round(tasks.reduce((sum, task) => sum + task.progress, 0) / assigned) : 0,
+      tasks,
+    };
+  });
 }
 
 export async function addMember(

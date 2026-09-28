@@ -10,6 +10,8 @@ const router = Router({ mergeParams: true });
 router.use(requireAuth);
 
 router.get('/', validate({ params: memberParamSchema.pick({ projectId: true }) }), controller.list);
+// Declared before `/:userId` so "progress" is never parsed as a user id.
+router.get('/progress', validate({ params: memberParamSchema.pick({ projectId: true }) }), controller.progress);
 router.post('/', validate({ params: memberParamSchema.pick({ projectId: true }), body: addMemberSchema }), controller.add);
 router.patch(
   '/:userId',

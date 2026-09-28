@@ -1,20 +1,20 @@
 # ---------------------------------------------------------------------------
-# Project Tracker — production stack (standalone file)
+# TeamBoard — production stack (standalone file)
 #   docker compose -f docker-compose.prod.yml up -d --build
 #
 # - nginx terminates TLS on 443 and proxies /api to the API container
 # - the API and database are not published on the host
 # - `migrate` applies migrations and seeds base data before the API starts
 # ---------------------------------------------------------------------------
-name: ${COMPOSE_PROJECT_NAME:-task-tracker}
+name: ${COMPOSE_PROJECT_NAME:-teamboard}
 
 services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-tracker}
+      POSTGRES_USER: ${POSTGRES_USER:-teamboard}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      POSTGRES_DB: ${POSTGRES_DB:-tracker}
+      POSTGRES_DB: ${POSTGRES_DB:-teamboard}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -23,7 +23,7 @@ services:
       timeout: 5s
       retries: 12
     restart: unless-stopped
-    networks: [tracker-net]
+    networks: [teamboard-net]
 
   migrate:
     build:
@@ -31,7 +31,7 @@ services:
       target: migrate
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-tracker}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tracker}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-teamboard}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-teamboard}?schema=public
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
       SEED_PROJECT_CODE: ${SEED_PROJECT_CODE:-WEBAPP}
@@ -40,7 +40,7 @@ services:
       db:
         condition: service_healthy
     restart: 'no'
-    networks: [tracker-net]
+    networks: [teamboard-net]
 
   api:
     build:
@@ -49,9 +49,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: '4000'
-      DATABASE_URL: postgresql://${POSTGRES_USER:-tracker}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tracker}?schema=public
-      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-tracker_session}
-      CSRF_COOKIE_NAME: ${CSRF_COOKIE_NAME:-tracker_csrf}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-teamboard}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-teamboard}?schema=public
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-teamboard_session}
+      CSRF_COOKIE_NAME: ${CSRF_COOKIE_NAME:-teamboard_csrf}
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-168}
       SESSION_IDLE_HOURS: ${SESSION_IDLE_HOURS:-24}
       COOKIE_SECURE: 'true'
@@ -75,7 +75,7 @@ services:
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
-    networks: [tracker-net]
+    networks: [teamboard-net]
 
   web:
     build:
@@ -92,12 +92,15 @@ services:
       api:
         condition: service_healthy
     restart: unless-stopped
-    networks: [tracker-net]
+    networks: [teamboard-net]
 
 volumes:
   pgdata:
+    name: teamboard_pgdata
   uploads:
+    name: teamboard_uploads
 
 networks:
-  tracker-net:
+  teamboard-net:
+    name: teamboard-net
     driver: bridge

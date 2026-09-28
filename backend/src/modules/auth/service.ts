@@ -241,11 +241,11 @@ export async function requestPasswordReset(email: string, context: AuditContext)
   await prisma.mailOutbox.create({
     data: {
       toEmail: user.email,
-      subject: 'Reset your Project Tracker password',
+      subject: 'Reset your TeamBoard password',
       body: [
         `Hi ${user.displayName},`,
         '',
-        'A password reset was requested for your Project Tracker account.',
+        'A password reset was requested for your TeamBoard account.',
         `Open this link to choose a new password (valid for ${PASSWORD_RESET_TTL_MINUTES} minutes):`,
         resetUrl,
         '',

@@ -1,4 +1,4 @@
-# Project Tracker
+# TeamBoard
 
 A production-oriented, internal **development project & task tracker** for software teams — a secure replacement for the team's Google Sheets tracker.
 
@@ -81,8 +81,8 @@ docker compose up --build
 
 | Service | URL |
 |---|---|
-| Web app | https://localhost:5173 |
-| API health | https://localhost:5173/api/health (also http://localhost:4000/api/health) |
+| Web app | https://localhost:5180 |
+| API health | https://localhost:5180/api/health (also http://localhost:4000/api/health) |
 | PostgreSQL | localhost:5432 |
 
 Sign in with the `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from your `.env`. The seeded admin must change its password on first sign-in.
@@ -101,7 +101,7 @@ Stop the stack with `docker compose down` (add `-v` to also delete the database 
 
 ## Local development without Docker
 
-PostgreSQL 16 is required (a local server or `docker run --name tracker-pg -e POSTGRES_USER=tracker -e POSTGRES_PASSWORD=... -e POSTGRES_DB=tracker -p 5432:5432 postgres:16-alpine`).
+PostgreSQL 16 is required (a local server or `docker run --name teamboard-pg -e POSTGRES_USER=teamboard -e POSTGRES_PASSWORD=... -e POSTGRES_DB=teamboard -p 5432:5432 postgres:16-alpine`).
 
 ### Backend
 
@@ -120,7 +120,7 @@ npm run dev                  # http://localhost:4000
 cd frontend
 cp .env.example .env         # VITE_API_URL=/api, proxy target http://localhost:4000
 npm install
-npm run dev                  # https://localhost:5173 when ../certs exists, otherwise http
+npm run dev                  # https://localhost:5180 when ../certs exists, otherwise http
 ```
 
 ---
@@ -176,7 +176,7 @@ Detailed threat model and checklist: [`ARCHITECTURE.md` §10](./ARCHITECTURE.md#
 ## Project structure
 
 ```
-Task Tracker/
+TeamBoard/
 ├─ ARCHITECTURE.md            # requirements, schema, API, security, phases (source of truth)
 ├─ docker-compose.yml         # development stack (db + api + web)
 ├─ docker-compose.prod.yml    # production stack (nginx TLS, migrate job, volumes)
@@ -279,10 +279,10 @@ docker compose -f docker-compose.prod.yml up -d --build
 ### Backup and restore
 
 ```bash
-./scripts/backup-db.sh                                    # writes backups/tracker-<timestamp>.dump
+./scripts/backup-db.sh                                    # writes backups/teamboard-<timestamp>.dump
 # Restore into a scratch database and verify
- docker compose exec -T db psql -U tracker -d postgres -c 'CREATE DATABASE restore_test;'
-docker compose exec -T db pg_restore -U tracker -d restore_test --no-owner --no-privileges < backups/<file>.dump
+ docker compose exec -T db psql -U teamboard -d postgres -c 'CREATE DATABASE restore_test;'
+docker compose exec -T db pg_restore -U teamboard -d restore_test --no-owner --no-privileges < backups/<file>.dump
 ```
 
 A restore drill has been executed against this project: the dump restored with matching counts for users, projects, tasks, audit rows, vocabularies and permissions. See `docs/DATABASE.md` §6 for the full procedure.
@@ -300,4 +300,4 @@ A restore drill has been executed against this project: the dump restored with m
 | Logged out unexpectedly | Sessions expire after `SESSION_IDLE_HOURS` of inactivity; sign in again. |
 | API returns "Cannot read properties of undefined" or unknown-model errors after a schema change | The generated Prisma client is stale. `docker compose up -d api` recreates the container and runs `prisma generate` automatically; `docker compose restart` reuses the container and does not pick up compose-file changes. |
 | Backend edits do not take effect in the dev container | The dev API runs `nodemon --legacy-watch` (polling) because file-change events do not cross Windows bind mounts with `tsx watch`. If a change still does not appear, run `docker compose restart api`. |
-| `sh: <package>: not found` after adding a dependency | The dev container installs dependencies at startup (`npm ci`), so this self-heals on `docker compose up -d api`. If it persists, recreate the volume: `docker compose stop api && docker compose rm -f api && docker volume rm task-tracker_backend_node_modules && docker compose up -d api`. |
+| `sh: <package>: not found` after adding a dependency | The dev container installs dependencies at startup (`npm ci`), so this self-heals on `docker compose up -d api`. If it persists, recreate the volume: `docker compose stop api && docker compose rm -f api && docker volume rm teamboard_backend_node_modules && docker compose up -d api`. |

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { applyTheme, readStoredTheme, storeTheme, type Theme } from '../lib/theme';
+import { applyTheme, readStoredTheme, storeTheme, withThemeTransition, type Theme } from '../lib/theme';
 
 interface UiState {
   theme: Theme;
@@ -20,7 +20,7 @@ export const useUiStore = create<UiState>((set) => ({
   mobileNavOpen: false,
   setTheme: (theme) => {
     storeTheme(theme);
-    applyTheme(theme);
+    withThemeTransition(() => applyTheme(theme));
     set({ theme });
   },
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),

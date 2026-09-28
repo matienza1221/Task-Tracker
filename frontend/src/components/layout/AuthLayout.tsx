@@ -9,10 +9,10 @@ export function AuthLayout({ title, description, children }: { title: string; de
             aria-hidden="true"
             className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-sm font-bold text-white"
           >
-            PT
+            TB
           </span>
           <div>
-            <p className="text-base font-semibold text-slate-900 dark:text-white">Project Tracker</p>
+            <p className="text-base font-semibold text-slate-900 dark:text-white">TeamBoard</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">Development task management</p>
           </div>
         </div>

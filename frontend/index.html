@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="description" content="Project Tracker — internal development task management" />
-    <title>Project Tracker</title>
+    <meta name="description" content="TeamBoard — internal development task management" />
+    <title>TeamBoard</title>
     <script>
       // Apply the saved theme before first paint to avoid a flash.
       (function () {
         try {
-          var stored = localStorage.getItem('tracker-theme');
+          var stored = localStorage.getItem('teamboard-theme');
           var dark = stored === 'dark' || ((!stored || stored === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches);
           if (dark) document.documentElement.classList.add('dark');
         } catch (error) {

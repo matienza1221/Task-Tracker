@@ -103,12 +103,12 @@ Current migrations:
 
 ```bash
 # Compressed logical backup (custom format) with retention
-./scripts/backup-db.sh                       # → backups/tracker-<timestamp>.dump
+./scripts/backup-db.sh                       # → backups/teamboard-<timestamp>.dump
 
 # Restore into a fresh database
-docker compose exec -T db psql -U tracker -d postgres -c 'CREATE DATABASE restore_test;'
-docker compose exec -T db pg_restore -U tracker -d restore_test --no-owner --no-privileges < backups/<file>.dump
-docker compose exec -T db psql -U tracker -d restore_test -c 'SELECT count(*) FROM tasks;'
+docker compose exec -T db psql -U teamboard -d postgres -c 'CREATE DATABASE restore_test;'
+docker compose exec -T db pg_restore -U teamboard -d restore_test --no-owner --no-privileges < backups/<file>.dump
+docker compose exec -T db psql -U teamboard -d restore_test -c 'SELECT count(*) FROM tasks;'
 ```
 
 A restore drill was executed against this project: the dump restored with

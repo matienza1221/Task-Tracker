@@ -61,6 +61,29 @@ export interface ProjectMember {
   createdAt: string;
 }
 
+export interface MemberTaskProgress {
+  id: string;
+  displayKey: string;
+  title: string;
+  status: ProjectStatusDto;
+  priority: ProjectPriorityDto;
+  progress: number;
+  progressMode: 'AUTO' | 'MANUAL';
+  dueDate: string | null;
+  isOverdue: boolean;
+}
+
+export interface MemberProgress {
+  userId: string;
+  assigned: number;
+  completed: number;
+  open: number;
+  overdue: number;
+  completionPercent: number;
+  averageProgress: number;
+  tasks: MemberTaskProgress[];
+}
+
 export interface Milestone {
   id: string;
   projectId: string;

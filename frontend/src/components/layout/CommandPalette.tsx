@@ -12,7 +12,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { cn } from '../../lib/cn';
 import type { AuthUser } from '../../features/auth/types';
 
-export const COMMAND_PALETTE_EVENT = 'tracker:command-palette';
+export const COMMAND_PALETTE_EVENT = 'teamboard:command-palette';
 
 interface CommandAction {
   id: string;

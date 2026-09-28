@@ -13,6 +13,12 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, { members: await memberService.listMembers(req.user, projectId) });
 });
 
+export const progress = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw unauthenticated();
+  const { projectId } = validatedParams<{ projectId: string }>(req);
+  sendSuccess(res, { members: await memberService.listMemberProgress(req.user, projectId) });
+});
+
 export const add = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw unauthenticated();
   const { projectId } = validatedParams<{ projectId: string }>(req);

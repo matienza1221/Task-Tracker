@@ -4,7 +4,7 @@ Base URL: `/api` (same origin; the SPA is served by Vite in development and ngin
 
 All endpoints return JSON with a consistent envelope. Authentication uses an
 `HttpOnly` session cookie; state-changing requests require the `X-CSRF-Token`
-header whose value matches the `tracker_csrf` cookie and the server-side session.
+header whose value matches the `teamboard_csrf` cookie and the server-side session.
 
 ---
 
@@ -57,9 +57,9 @@ header whose value matches the `tracker_csrf` cookie and the server-side session
 
 1. `POST /api/auth/login` with credentials.
 2. Server sets:
-   - `tracker_session` — `HttpOnly; Secure; SameSite=Lax` session token
-   - `tracker_csrf` — readable by JavaScript, bound to the session
-3. The SPA reads `tracker_csrf` and sends it as `X-CSRF-Token` on every
+   - `teamboard_session` — `HttpOnly; Secure; SameSite=Lax` session token
+   - `teamboard_csrf` — readable by JavaScript, bound to the session
+3. The SPA reads `teamboard_csrf` and sends it as `X-CSRF-Token` on every
    `POST`/`PATCH`/`PUT`/`DELETE`.
 4. Non-browser clients must send both the cookie and the header.
 

@@ -1,18 +1,18 @@
 # ---------------------------------------------------------------------------
-# Project Tracker — development stack
+# TeamBoard — development stack
 #   docker compose up --build
-#   Web:  https://localhost:5173   (self-signed certificate)
+#   Web:  https://localhost:5180   (self-signed certificate)
 #   API:  http://localhost:4000/api/health
 # ---------------------------------------------------------------------------
-name: task-tracker
+name: teamboard
 
 services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-tracker}
+      POSTGRES_USER: ${POSTGRES_USER:-teamboard}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      POSTGRES_DB: ${POSTGRES_DB:-tracker}
+      POSTGRES_DB: ${POSTGRES_DB:-teamboard}
     ports:
       - '${DB_PORT:-5432}:5432'
     volumes:
@@ -23,7 +23,7 @@ services:
       timeout: 5s
       retries: 12
     restart: unless-stopped
-    networks: [tracker-net]
+    networks: [teamboard-net]
 
   api:
     build:
@@ -32,15 +32,15 @@ services:
     environment:
       NODE_ENV: development
       PORT: '4000'
-      DATABASE_URL: postgresql://${POSTGRES_USER:-tracker}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tracker}?schema=public
-      DATABASE_URL_TEST: postgresql://${POSTGRES_USER:-tracker}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tracker}_test?schema=public
-      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-tracker_session}
-      CSRF_COOKIE_NAME: ${CSRF_COOKIE_NAME:-tracker_csrf}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-teamboard}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-teamboard}?schema=public
+      DATABASE_URL_TEST: postgresql://${POSTGRES_USER:-teamboard}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-teamboard}_test?schema=public
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-teamboard_session}
+      CSRF_COOKIE_NAME: ${CSRF_COOKIE_NAME:-teamboard_csrf}
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-168}
       SESSION_IDLE_HOURS: ${SESSION_IDLE_HOURS:-24}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
-      CORS_ORIGIN: ${CORS_ORIGIN:-https://localhost:5173,http://localhost:5173}
-      APP_URL: ${APP_URL:-https://localhost:5173}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://localhost:5180,http://localhost:5180}
+      APP_URL: ${APP_URL:-https://localhost:5180}
       TRUST_PROXY: 'true'
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-300}
       AUTH_RATE_LIMIT_MAX: ${AUTH_RATE_LIMIT_MAX:-10}
@@ -74,7 +74,7 @@ services:
       retries: 12
       start_period: 20s
     restart: unless-stopped
-    networks: [tracker-net]
+    networks: [teamboard-net]
 
   web:
     build:
@@ -84,23 +84,31 @@ services:
       VITE_API_URL: /api
       VITE_API_PROXY_TARGET: http://api:4000
       CERTS_DIR: /certs
+    # Source is bind-mounted and hot-reloaded by Vite (polling is enabled in
+    # vite.config.ts). `npm ci` keeps the named node_modules volume in sync with
+    # the lockfile, so dependency changes never require `docker compose --build`.
+    command: sh -c "npm ci --no-audit --no-fund && npm run dev -- --host 0.0.0.0"
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
       - ./certs:/certs:ro
     ports:
-      - '${WEB_PORT:-5173}:5173'
+      - '${WEB_PORT:-5180}:5180'
     depends_on:
       api:
         condition: service_healthy
     restart: unless-stopped
-    networks: [tracker-net]
+    networks: [teamboard-net]
 
 volumes:
   pgdata:
+    name: teamboard_pgdata
   backend_node_modules:
+    name: teamboard_backend_node_modules
   frontend_node_modules:
+    name: teamboard_frontend_node_modules
 
 networks:
-  tracker-net:
+  teamboard-net:
+    name: teamboard-net
     driver: bridge

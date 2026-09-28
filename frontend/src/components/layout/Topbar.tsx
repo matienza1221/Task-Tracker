@@ -14,9 +14,8 @@ import { NotificationBell } from './NotificationBell';
 function ThemeToggle() {
   const theme = useUiStore((state) => state.theme);
   const setTheme = useUiStore((state) => state.setTheme);
-  const order = ['light', 'dark', 'system'] as const;
-  const next = order[(order.indexOf(theme) + 1) % order.length];
-  const label = `Theme: ${theme}. Switch to ${next}.`;
+  const next = theme === 'dark' ? 'light' : 'dark';
+  const label = `Switch to ${next} mode`;
 
   return (
     <button

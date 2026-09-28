@@ -11,7 +11,7 @@ describe('uiStore', () => {
   it('stores the theme and applies it to the document', () => {
     useUiStore.getState().setTheme('dark');
     expect(useUiStore.getState().theme).toBe('dark');
-    expect(localStorage.getItem('tracker-theme')).toBe('dark');
+    expect(localStorage.getItem('teamboard-theme')).toBe('dark');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
 
     useUiStore.getState().setTheme('light');

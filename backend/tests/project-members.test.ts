@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { app } from '../src/app';
 import { prisma } from '../src/db/prisma';
 import { authed } from './helpers/auth';
-import { createProjectFixture, createTestUser } from './helpers/db';
+import { createProjectFixture, createTaskFixture, createTestUser } from './helpers/db';
 import { createUserWithSession } from './helpers/scenarios';
 
 async function projectScenario() {
@@ -96,6 +96,43 @@ describe('GET /api/projects/:projectId/members', () => {
     expect(JSON.stringify(visible.body)).not.toContain('passwordHash');
 
     const hidden = await authed(app, outsider.client).get(`/api/projects/${project.id}/members`);
+    expect(hidden.status).toBe(404);
+  });
+});
+
+describe('GET /api/projects/:projectId/members/progress', () => {
+  it('returns each member task breakdown with progress and hides it from outsiders', async () => {
+    const { pm, developer, outsider, project } = await projectScenario();
+    await prisma.projectMember.create({
+      data: { projectId: project.id, userId: developer.user.id, projectRole: 'DEVELOPER' },
+    });
+
+    const done = await createTaskFixture({
+      projectId: project.id,
+      reporter: pm.user,
+      title: 'Shipped',
+      statusKey: 'DONE',
+      assigneeId: developer.user.id,
+      progress: 100,
+    });
+    const open = await createTaskFixture({
+      projectId: project.id,
+      reporter: pm.user,
+      title: 'In flight',
+      statusKey: 'IN_PROGRESS',
+      assigneeId: developer.user.id,
+      progress: 40,
+    });
+
+    const response = await authed(app, developer.client).get(`/api/projects/${project.id}/members/progress`);
+    expect(response.status).toBe(200);
+
+    const row = response.body.data.members.find((member: { userId: string }) => member.userId === developer.user.id);
+    expect(row).toMatchObject({ assigned: 2, completed: 1, open: 1, completionPercent: 50, averageProgress: 70 });
+    expect(row.tasks.map((task: { id: string }) => task.id).sort()).toEqual([done.id, open.id].sort());
+    expect(row.tasks.find((task: { id: string }) => task.id === done.id).displayKey).toBe(done.key);
+
+    const hidden = await authed(app, outsider.client).get(`/api/projects/${project.id}/members/progress`);
     expect(hidden.status).toBe(404);
   });
 });

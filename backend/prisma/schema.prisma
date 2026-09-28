@@ -1,4 +1,4 @@
-// Project Tracker — Prisma schema
+// TeamBoard — Prisma schema
 // Phase 1: identity, security and configurable vocabularies.
 // Later phases append project/task/collaboration models (see ARCHITECTURE.md §6).
 //

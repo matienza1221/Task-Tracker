@@ -8,8 +8,8 @@ export interface SuccessEnvelope<T> {
   meta?: Record<string, unknown>;
 }
 
-export const CSRF_COOKIE_NAME = 'tracker_csrf';
-export const UNAUTHORIZED_EVENT = 'tracker:unauthorized';
+export const CSRF_COOKIE_NAME = 'teamboard_csrf';
+export const UNAUTHORIZED_EVENT = 'teamboard:unauthorized';
 
 /**
  * Base URL comes from the environment (VITE_API_URL, default "/api"); the API

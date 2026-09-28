@@ -27,8 +27,8 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 
   // Session / cookies
-  SESSION_COOKIE_NAME: z.string().min(1).default('tracker_session'),
-  CSRF_COOKIE_NAME: z.string().min(1).default('tracker_csrf'),
+  SESSION_COOKIE_NAME: z.string().min(1).default('teamboard_session'),
+  CSRF_COOKIE_NAME: z.string().min(1).default('teamboard_csrf'),
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(2160).default(168),
   SESSION_IDLE_HOURS: z.coerce.number().int().min(1).max(720).default(24),
   COOKIE_SECURE: booleanish(false),
@@ -50,7 +50,7 @@ const envSchema = z.object({
   STORAGE_PROVIDER: z.enum(['local', 's3']).default('local'),
 
   // Links used in outbound mail (password reset)
-  APP_URL: z.string().default('https://localhost:5173'),
+  APP_URL: z.string().default('https://localhost:5180'),
 
   // Seed (used by prisma/seed.ts only)
   SEED_ADMIN_EMAIL: z.string().optional(),

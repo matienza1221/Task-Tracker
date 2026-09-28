@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
   // do not reach the container reliably (Windows + Docker Desktop). Polling is
   // what makes hot reload see edits without restarting the container.
   const hmrHost = env.VITE_HMR_HOST || 'localhost';
-  const hmrClientPort = Number(env.VITE_HMR_CLIENT_PORT || 5173);
+  const hmrClientPort = Number(env.VITE_HMR_CLIENT_PORT || 5180);
   const hmr = https
     ? { protocol: 'wss' as const, host: hmrHost, clientPort: hmrClientPort }
     : { protocol: 'ws' as const, host: hmrHost, clientPort: hmrClientPort };
@@ -31,7 +31,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     server: {
       host: true,
-      port: 5173,
+      port: 5180,
+      strictPort: true,
       https,
       watch: {
         usePolling: true,

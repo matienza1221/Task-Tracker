@@ -3,7 +3,7 @@ import { env } from '../config/env';
 
 export const logger = pino({
   level: env.LOG_LEVEL,
-  base: { service: 'tracker-api', env: env.NODE_ENV },
+  base: { service: 'teamboard-api', env: env.NODE_ENV },
   redact: {
     paths: [
       'req.headers.authorization',

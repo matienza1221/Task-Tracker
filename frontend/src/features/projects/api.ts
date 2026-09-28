@@ -2,7 +2,7 @@ import { apiDelete, apiGet, apiGetEnvelope, apiPatch, apiPost } from '../../lib/
 import { toQueryString } from '../../lib/api/queryString';
 import type { ProjectRole } from '../users/constants';
 import type { AddMemberFormValues, LabelFormValues, MilestoneFormValues, ProjectFormValues } from './schemas';
-import type { ActivityEntry, Milestone, Project, ProjectFilters, ProjectLabel, ProjectMember, SavedView } from './types';
+import type { ActivityEntry, MemberProgress, Milestone, Project, ProjectFilters, ProjectLabel, ProjectMember, SavedView } from './types';
 import type { PaginationMeta } from '../users/api';
 
 export type ProjectEnvelope = { project: Project };
@@ -26,6 +26,8 @@ export const deleteProject = (projectId: string, purge = false) =>
   apiDelete<null>(`/projects/${projectId}${toQueryString({ purge })}`);
 
 export const fetchMembers = (projectId: string) => apiGet<{ members: ProjectMember[] }>(`/projects/${projectId}/members`);
+export const fetchMemberProgress = (projectId: string) =>
+  apiGet<{ members: MemberProgress[] }>(`/projects/${projectId}/members/progress`);
 export const addMember = (projectId: string, input: AddMemberFormValues) =>
   apiPost<{ member: ProjectMember }>(`/projects/${projectId}/members`, input);
 export const updateMemberRole = (projectId: string, userId: string, projectRole: ProjectRole) =>

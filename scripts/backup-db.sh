@@ -10,12 +10,12 @@ RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 
 mkdir -p "$OUT_DIR"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
-FILE="$OUT_DIR/tracker-$TIMESTAMP.dump"
+FILE="$OUT_DIR/teamboard-$TIMESTAMP.dump"
 
-docker compose exec -T db pg_dump -U "${POSTGRES_USER:-tracker}" -Fc "${POSTGRES_DB:-tracker}" > "$FILE"
+docker compose exec -T db pg_dump -U "${POSTGRES_USER:-teamboard}" -Fc "${POSTGRES_DB:-teamboard}" > "$FILE"
 echo "Backup written to $FILE"
 
-find "$OUT_DIR" -name 'tracker-*.dump' -type f -mtime "+$RETENTION_DAYS" -delete
+find "$OUT_DIR" -name 'teamboard-*.dump' -type f -mtime "+$RETENTION_DAYS" -delete
 echo "Pruned backups older than $RETENTION_DAYS days."
 
 cat <<'RESTORE'

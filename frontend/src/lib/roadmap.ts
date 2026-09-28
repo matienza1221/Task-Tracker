@@ -31,19 +31,19 @@ export const ROADMAP: RoadmapPhase[] = [
   {
     phase: 4,
     title: 'Kanban, filters & search',
-    status: 'planned',
+    status: 'complete',
     summary: 'Drag-and-drop board, URL-synced filters, saved views, My Tasks, command palette.',
   },
   {
     phase: 5,
     title: 'Collaboration',
-    status: 'planned',
+    status: 'complete',
     summary: 'Comments, mentions, activity feed, notifications, attachments.',
   },
   {
     phase: 6,
     title: 'Schedule',
-    status: 'planned',
+    status: 'complete',
     summary: 'Calendar, timeline, milestones, task dependencies with cycle prevention.',
   },
   {
@@ -55,7 +55,7 @@ export const ROADMAP: RoadmapPhase[] = [
   {
     phase: 8,
     title: 'Import, hardening & production',
-    status: 'planned',
+    status: 'complete',
     summary: 'Spreadsheet import/export, security review, production Docker, full documentation.',
   },
 ];

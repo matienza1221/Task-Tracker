@@ -22,13 +22,13 @@
   *,
   ::before,
   ::after {
-    border-color: theme(--color-slate-200);
+    border-color: var(--color-slate-200);
   }
 
   .dark *,
   .dark ::before,
   .dark ::after {
-    border-color: theme(--color-slate-800);
+    border-color: var(--color-slate-800);
   }
 
   :focus-visible {
@@ -45,4 +45,52 @@
     scrollbar-width: thin;
     scrollbar-color: theme(--color-slate-400) transparent;
   }
+}
+
+/*
+ * Old-Discord-inspired dark palette.
+ *
+ * The app expresses every surface/text colour through the Tailwind `slate`
+ * scale and every accent through `indigo`. Re-pointing those theme variables
+ * under `.dark` re-skins the whole UI without touching a single component.
+ * Unlayered so it wins over Tailwind's `@layer theme` defaults.
+ */
+.dark {
+  --color-slate-950: #202225;
+  --color-slate-900: #2f3136;
+  --color-slate-800: #36393f;
+  --color-slate-700: #40444b;
+  --color-slate-600: #4f545c;
+  --color-slate-500: #72767d;
+  --color-slate-400: #b9bbbe;
+  --color-slate-300: #dcddde;
+  --color-slate-200: #e3e5e8;
+  --color-slate-100: #ffffff;
+
+  --color-indigo-950: #2e3358;
+  --color-indigo-800: #4752c4;
+  --color-indigo-600: #7289da;
+  --color-indigo-500: #7983d4;
+  --color-indigo-400: #8ea1e1;
+  --color-indigo-300: #a5b3f0;
+  --color-indigo-200: #c3ccf5;
+  --color-indigo-100: #e0e6ff;
+}
+
+/*
+ * Cross-fade applied to <html> for the duration of a light/dark switch only
+ * (see `withThemeTransition` in lib/theme.ts), so it never slows down ordinary
+ * hover/focus transitions the rest of the time.
+ */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease,
+    fill 200ms ease,
+    stroke 200ms ease,
+    box-shadow 200ms ease !important;
 }

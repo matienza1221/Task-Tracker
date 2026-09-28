@@ -1,4 +1,4 @@
-# Project Tracker — Architecture & Implementation Plan
+# TeamBoard — Architecture & Implementation Plan
 
 **Status:** All eight phases implemented — authentication, users, roles, projects, tasks, Kanban, collaboration, dependencies, scheduling, analytics, audit log, spreadsheet import/export, production Docker configuration and the full documentation set. See `README.md` for setup and `docs/` for the API, database and security references.
 **Version:** 1.0
@@ -223,7 +223,7 @@ All checks run in a central authorization service (see [§8](#8-authorization-an
 ### 5.1 Topology
 
 ```
-┌──────────────────────────── docker network: tracker-net ────────────────────────────┐
+┌──────────────────────────── docker network: teamboard-net ────────────────────────────┐
 │                                                                                      │
 │  ┌───────────────────────┐        ┌────────────────────────────┐                     │
 │  │ web (nginx OR vite)   │        │ api (node + express + ts)  │                     │
@@ -235,7 +235,7 @@ All checks run in a central authorization service (see [§8](#8-authorization-an
 │            ▲                      └─────────────┬──────────────┘                     │
 │            │ HTTPS                              │ TLS-less, private network           │
 │            │                                    ▼                                     │
-│      host port 443/5173            ┌────────────────────────────┐                     │
+│      host port 443/5180            ┌────────────────────────────┐                     │
 │                                    │ db (postgres:16-alpine)    │                     │
 │                                    │  - volume: pgdata          │                     │
 │                                    │  - healthcheck pg_isready  │                     │
@@ -251,7 +251,7 @@ All checks run in a central authorization service (see [§8](#8-authorization-an
 ### 5.2 Proposed repository layout
 
 ```
-Task Tracker/
+TeamBoard/
 ├─ ARCHITECTURE.md                  ← this document
 ├─ README.md                        ← setup / dev / prod instructions
 ├─ docker-compose.yml               ← dev
@@ -849,9 +849,9 @@ Zustand never stores server entities. `authStore` is intentionally replaced by a
 |---|---|---|---|---|
 | `db` | `postgres:16-alpine` | internal 5432 only | `pgdata:/var/lib/postgresql/data`, `./scripts/init-db.sql` (optional) | `pg_isready -U $POSTGRES_USER` |
 | `api` | multi-stage `node:22-alpine`, non-root | internal 4000 | `uploads:/app/uploads` (dev: `./backend:/app` bind mount) | `GET /api/health` |
-| `web` | dev: `node:22-alpine` running Vite; prod: `nginx:1.27-alpine` | `443:443`, dev `5173:5173` | prod `./certs:/etc/nginx/certs:ro` | nginx `/healthz` |
+| `web` | dev: `node:22-alpine` running Vite; prod: `nginx:1.27-alpine` | `443:443`, dev `5180:5180` | prod `./certs:/etc/nginx/certs:ro` | nginx `/healthz` |
 
-Compose settings: `name: task-tracker`, network `tracker-net`, `restart: unless-stopped`, `depends_on` with `condition: service_healthy`, `env_file: .env`, `logging` json-file with rotation, resource limits in prod.
+Compose settings: `name: teamboard`, network `teamboard-net`, `restart: unless-stopped`, `depends_on` with `condition: service_healthy`, `env_file: .env`, `logging` json-file with rotation, resource limits in prod.
 
 ### 11.2 Environment variables
 
@@ -861,10 +861,10 @@ Compose settings: `name: task-tracker`, network `tracker-net`, `restart: unless-
 |---|---|---|
 | `NODE_ENV` | `development` | `production` enables strict errors/CSP/HSTS |
 | `PORT` | `4000` | |
-| `DATABASE_URL` | `postgresql://tracker:***@db:5432/tracker?schema=public` | Secret |
-| `SESSION_COOKIE_NAME` | `tracker_session` | |
+| `DATABASE_URL` | `postgresql://teamboard:***@db:5432/teamboard?schema=public` | Secret |
+| `SESSION_COOKIE_NAME` | `teamboard_session` | |
 | `SESSION_TTL_HOURS` / `SESSION_IDLE_HOURS` | `168` / `24` | |
-| `CORS_ORIGIN` | `https://localhost:5173` | comma-separated allowlist |
+| `CORS_ORIGIN` | `https://localhost:5180` | comma-separated allowlist |
 | `ENABLE_PUBLIC_REGISTRATION` | `false` | |
 | `MAX_UPLOAD_MB` | `10` | |
 | `UPLOAD_DIR` | `/app/uploads` | |

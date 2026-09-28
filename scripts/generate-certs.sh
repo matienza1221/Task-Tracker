@@ -25,7 +25,7 @@ openssl_args=(
   req -x509 -newkey rsa:4096 -sha256 -days 825 -nodes
   -keyout "$CERT_DIR/dev.key"
   -out "$CERT_DIR/dev.crt"
-  -subj "/CN=localhost/O=Project Tracker Development"
+  -subj "/CN=localhost/O=TeamBoard Development"
   -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:::1"
   -addext "keyUsage=digitalSignature,keyEncipherment"
   -addext "extendedKeyUsage=serverAuth"

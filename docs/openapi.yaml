@@ -1,12 +1,12 @@
 openapi: 3.1.0
 info:
-  title: Project Tracker API
+  title: TeamBoard API
   version: 1.0.0
   description: |
-    REST API for the Project Tracker (development task management).
+    REST API for the TeamBoard (development task management).
 
-    Authentication uses an opaque session cookie (`tracker_session`, HttpOnly)
-    plus a double-submit CSRF token (`tracker_csrf` cookie, `X-CSRF-Token`
+    Authentication uses an opaque session cookie (`teamboard_session`, HttpOnly)
+    plus a double-submit CSRF token (`teamboard_csrf` cookie, `X-CSRF-Token`
     header on state-changing requests). Every response uses the same envelope.
 
     Authorization is enforced per resource: projects the caller cannot see
@@ -588,7 +588,7 @@ components:
     sessionCookie:
       type: apiKey
       in: cookie
-      name: tracker_session
+      name: teamboard_session
   parameters:
     Page:
       name: page

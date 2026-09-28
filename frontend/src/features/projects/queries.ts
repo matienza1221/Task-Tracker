@@ -14,6 +14,7 @@ import {
   deleteProject,
   fetchActivity,
   fetchLabels,
+  fetchMemberProgress,
   fetchMembers,
   fetchMilestones,
   fetchProject,
@@ -33,6 +34,7 @@ export const projectKeys = {
   list: (filters: ProjectFilters) => ['projects', 'list', filters] as const,
   detail: (projectId: string) => ['projects', 'detail', projectId] as const,
   members: (projectId: string) => ['projects', 'members', projectId] as const,
+  memberProgress: (projectId: string) => ['projects', 'members', 'progress', projectId] as const,
   milestones: (projectId: string) => ['projects', 'milestones', projectId] as const,
   labels: (projectId: string) => ['projects', 'labels', projectId] as const,
   savedViews: (projectId: string) => ['projects', 'saved-views', projectId] as const,
@@ -105,6 +107,14 @@ export function useMembers(projectId: string, enabled = true) {
     queryKey: projectKeys.members(projectId),
     queryFn: () => fetchMembers(projectId),
     enabled,
+  });
+}
+
+export function useMemberProgress(projectId: string, enabled = true) {
+  return useQuery({
+    queryKey: projectKeys.memberProgress(projectId),
+    queryFn: () => fetchMemberProgress(projectId),
+    enabled: enabled && Boolean(projectId),
   });
 }
 
