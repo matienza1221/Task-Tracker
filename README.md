@@ -123,6 +123,18 @@ npm install
 npm run dev                  # https://localhost:5180 when ../certs exists, otherwise http
 ```
 
+### Demo data
+
+To explore the app with a populated workspace instead of an empty database:
+
+```bash
+cd backend && npm run db:seed:demo     # or: docker compose exec api npm run db:seed:demo
+```
+
+This creates two projects (`WEBAPP` "Web App Platform" and `MOBILE` "Mobile Companion App") with a team of five demo accounts, members, labels, milestones, tasks and subtasks, dependencies, comments with mentions, notifications, saved views, activity, audit history and a few attachments. It is safe to re-run: it resets only the demo-owned accounts and projects.
+
+Sign in with any of `maya.patel@teamboard.demo`, `leo.fernandez@teamboard.demo`, `amara.okafor@teamboard.demo`, `daniel.kim@teamboard.demo` or `sofia.reyes@teamboard.demo` using `Teamboard_Demo_2026!` (override with `SEED_DEMO_PASSWORD` or `-- --password '<value>'`).
+
 ---
 
 ## Commands
@@ -136,6 +148,7 @@ npm run dev                  # https://localhost:5180 when ../certs exists, othe
 | `backend` | `npm run test:coverage` | Coverage report |
 | `backend` | `npx prisma migrate dev --name <name>` | Create a migration during development |
 | `backend` | `npm run db:seed` | Idempotent seed (vocabularies, permissions, bootstrap admin) |
+| `backend` | `npm run db:seed:demo` | Populate a demo workspace (users, projects, tasks, comments, notifications) |
 | `frontend` | `npm run dev` | Vite dev server (HTTPS when certificates exist) |
 | `frontend` | `npm run build` | Type-check and produce `dist/` |
 | `frontend` | `npm test` | Component/store tests |

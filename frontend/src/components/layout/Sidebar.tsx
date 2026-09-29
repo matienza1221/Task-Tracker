@@ -6,6 +6,7 @@ import { useMe } from '../../features/auth/queries';
 import { useRecentNotifications } from '../../features/notifications/queries';
 import { can } from '../../features/auth/types';
 import { UploadIcon } from '../ui/upload-icon';
+import { BrandMark } from '../ui/brand-mark';
 import {
   BarChartIcon,
   BellIcon,
@@ -114,12 +115,7 @@ export function Sidebar() {
   const content = (
     <div className="flex h-full flex-col gap-5 px-3 py-4">
       <div className="flex items-center gap-2.5 px-2">
-        <span
-          aria-hidden="true"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white"
-        >
-          TB
-        </span>
+        <BrandMark className="h-8 w-8" />
         {!collapsed && (
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">TeamBoard</p>
