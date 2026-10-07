@@ -1,4 +1,4 @@
-export type Theme = 'light' | 'dark' | 'system';
+export type Theme = 'light' | 'dark';
 
 const THEME_KEY = 'teamboard-theme';
 
@@ -13,16 +13,16 @@ function prefersDark(): boolean {
 export function readStoredTheme(): Theme {
   try {
     const stored = localStorage.getItem(THEME_KEY);
-    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+    if (stored === 'light' || stored === 'dark') return stored;
   } catch {
     /* localStorage unavailable */
   }
-  return 'system';
+  // First visit: match the OS once, after that the choice is explicit.
+  return prefersDark() ? 'dark' : 'light';
 }
 
 export function applyTheme(theme: Theme): void {
-  const dark = theme === 'dark' || (theme === 'system' && prefersDark());
-  document.documentElement.classList.toggle('dark', dark);
+  document.documentElement.classList.toggle('dark', theme === 'dark');
 }
 
 export function storeTheme(theme: Theme): void {
@@ -49,18 +49,4 @@ export function withThemeTransition(apply: () => void): void {
   apply();
   if (transitionTimer) clearTimeout(transitionTimer);
   transitionTimer = setTimeout(() => root.classList.remove(THEME_TRANSITION_CLASS), THEME_TRANSITION_MS);
-}
-
-/** Re-applies the theme when the OS preference changes (only affects 'system'). */
-export function watchSystemTheme(getTheme: () => Theme): () => void {
-  try {
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const listener = () => {
-      if (getTheme() === 'system') applyTheme('system');
-    };
-    media.addEventListener('change', listener);
-    return () => media.removeEventListener('change', listener);
-  } catch {
-    return () => undefined;
-  }
 }

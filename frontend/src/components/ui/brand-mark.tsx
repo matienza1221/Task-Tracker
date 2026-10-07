@@ -14,8 +14,8 @@ export function BrandMark({ className }: { className?: string }) {
     >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#8ea1e1" />
-          <stop offset="1" stopColor="#5865f2" />
+          <stop offset="0" stopColor="#bdbdf7" />
+          <stop offset="1" stopColor="#6d5fd3" />
         </linearGradient>
       </defs>
 
@@ -41,7 +41,7 @@ export function BrandMark({ className }: { className?: string }) {
       <path
         d="M42.4 47.3l3.2 3.2 6-6.6"
         fill="none"
-        stroke="#5865f2"
+        stroke="#6d5fd3"
         strokeWidth="2.8"
         strokeLinecap="round"
         strokeLinejoin="round"

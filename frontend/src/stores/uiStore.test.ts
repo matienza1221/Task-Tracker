@@ -5,7 +5,7 @@ describe('uiStore', () => {
   beforeEach(() => {
     localStorage.clear();
     document.documentElement.classList.remove('dark');
-    useUiStore.setState({ theme: 'system', sidebarCollapsed: false, mobileNavOpen: false });
+    useUiStore.setState({ theme: 'light', sidebarCollapsed: false, mobileNavOpen: false });
   });
 
   it('stores the theme and applies it to the document', () => {

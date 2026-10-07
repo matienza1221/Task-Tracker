@@ -12,6 +12,7 @@ import { useCreateLabel, useDeleteLabel, useLabels, useUpdateLabel } from '../..
 import { labelFormSchema, type LabelFormValues } from '../../../features/projects/schemas';
 import { projectRoleCan } from '../../../features/auth/roles';
 import type { Project, ProjectLabel } from '../../../features/projects/types';
+import { PASTEL } from '../../../lib/palette';
 import { toast } from '../../../stores/toastStore';
 
 function LabelForm({ projectId, label, onDone }: { projectId: string; label?: ProjectLabel; onDone: () => void }) {
@@ -26,11 +27,11 @@ function LabelForm({ projectId, label, onDone }: { projectId: string; label?: Pr
     formState: { errors, isSubmitting },
   } = useForm<LabelFormValues>({
     resolver: zodResolver(labelFormSchema),
-    defaultValues: { name: label?.name ?? '', color: label?.color ?? '#6366f1' },
+    defaultValues: { name: label?.name ?? '', color: label?.color ?? PASTEL.lavender },
   });
 
   useEffect(() => {
-    reset({ name: label?.name ?? '', color: label?.color ?? '#6366f1' });
+    reset({ name: label?.name ?? '', color: label?.color ?? PASTEL.lavender });
   }, [label, reset]);
 
   const onSubmit = handleSubmit((values) => {

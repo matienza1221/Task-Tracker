@@ -8,6 +8,7 @@ import type { TimelineData } from '../../features/timeline/queries';
 import type { Task } from '../../features/tasks/types';
 import { cn } from '../../lib/cn';
 import { readableTextColor } from '../../lib/color';
+import { PASTEL } from '../../lib/palette';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { formatDate } from '../../lib/format';
 import { addDays, differenceInCalendarDays, eachMonthOfInterval, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
@@ -199,8 +200,8 @@ export function TimelineView({ data }: { data: TimelineData }) {
                     style={{
                       left: `${left}%`,
                       width: `${width}%`,
-                      backgroundColor: cancelled ? '#94a3b8' : task.status.color,
-                      color: readableTextColor(cancelled ? '#94a3b8' : task.status.color),
+                      backgroundColor: cancelled ? PASTEL.slate : task.status.color,
+                      color: readableTextColor(cancelled ? PASTEL.slate : task.status.color),
                     }}
                     className={cn(
                       'absolute top-3 flex h-6 items-center overflow-hidden rounded px-1.5 text-[10px] font-medium shadow-sm',

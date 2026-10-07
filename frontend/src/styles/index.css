@@ -8,9 +8,100 @@
     ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
     'Apple Color Emoji', 'Segoe UI Emoji';
 
-  /* Nudge the lightest text token darker so secondary text meets WCAG AA on
-   * white (slate-400 default is ~2.8:1). Dark mode re-declares its own scale. */
-  --color-slate-400: #64748b;
+  /*
+   * Pastel light palette (lavender-led).
+   *
+   * The whole UI expresses surfaces/text through the `slate` scale and
+   * semantics through `indigo`/`red`/`amber`/`emerald`/`sky`/`violet`. Re-pointing
+   * those theme variables re-skins every component without touching markup.
+   * Dark mode re-declares the same scales with matching pastel hues.
+   *
+   * Notes: `slate-400` is kept dark enough to meet WCAG AA for secondary text on
+   * white; the accent 600 shades stay dark enough for white button labels.
+   */
+  --color-slate-50: #f8f8fc;
+  --color-slate-100: #f1f1f8;
+  --color-slate-200: #e5e5f0;
+  --color-slate-300: #d4d4e4;
+  --color-slate-400: #6f6f8f;
+  --color-slate-500: #565673;
+  --color-slate-600: #45455e;
+  --color-slate-700: #37374c;
+  --color-slate-800: #2a2a3b;
+  --color-slate-900: #1e1e2b;
+  --color-slate-950: #14141e;
+
+  --color-indigo-50: #f3f3fe;
+  --color-indigo-100: #e9e9fd;
+  --color-indigo-200: #d6d6fb;
+  --color-indigo-300: #bdbdf7;
+  --color-indigo-400: #9d9df0;
+  --color-indigo-500: #8280e9;
+  --color-indigo-600: #6d5fd3;
+  --color-indigo-700: #574bb0;
+  --color-indigo-800: #453c8a;
+  --color-indigo-900: #372f6b;
+  --color-indigo-950: #241f45;
+
+  --color-emerald-50: #eefaf3;
+  --color-emerald-100: #d9f2e3;
+  --color-emerald-200: #b6e6cc;
+  --color-emerald-300: #8fd6b1;
+  --color-emerald-400: #66c294;
+  --color-emerald-500: #45ab7b;
+  --color-emerald-600: #2f7f5b;
+  --color-emerald-700: #276849;
+  --color-emerald-800: #20523a;
+  --color-emerald-900: #1a3f2e;
+  --color-emerald-950: #102a1e;
+
+  --color-amber-50: #fdf8ec;
+  --color-amber-100: #fbeecb;
+  --color-amber-200: #f6dd9c;
+  --color-amber-300: #eec868;
+  --color-amber-400: #e3b23c;
+  --color-amber-500: #cf9c1f;
+  --color-amber-600: #a9791a;
+  --color-amber-700: #8a6214;
+  --color-amber-800: #6f4f16;
+  --color-amber-900: #573f18;
+  --color-amber-950: #33260f;
+
+  --color-red-50: #fdf0f0;
+  --color-red-100: #fbdcdc;
+  --color-red-200: #f6bcbc;
+  --color-red-300: #ef9797;
+  --color-red-400: #e57373;
+  --color-red-500: #d65454;
+  --color-red-600: #bd3f3f;
+  --color-red-700: #9c3434;
+  --color-red-800: #7d2b2b;
+  --color-red-900: #612323;
+  --color-red-950: #3d1616;
+
+  --color-sky-50: #eef7fc;
+  --color-sky-100: #d6ecf8;
+  --color-sky-200: #b0dbf1;
+  --color-sky-300: #83c5e7;
+  --color-sky-400: #55abdb;
+  --color-sky-500: #3492c9;
+  --color-sky-600: #2477ab;
+  --color-sky-700: #1d618c;
+  --color-sky-800: #184e70;
+  --color-sky-900: #143e59;
+  --color-sky-950: #0d2839;
+
+  --color-violet-50: #f6f1fd;
+  --color-violet-100: #ece0fb;
+  --color-violet-200: #dac1f6;
+  --color-violet-300: #c39ced;
+  --color-violet-400: #a976e0;
+  --color-violet-500: #9058cc;
+  --color-violet-600: #7743ab;
+  --color-violet-700: #61378b;
+  --color-violet-800: #4e2e6e;
+  --color-violet-900: #3d2556;
+  --color-violet-950: #271738;
 }
 
 @layer base {
@@ -65,33 +156,93 @@
 }
 
 /*
- * Old-Discord-inspired dark palette.
- *
- * The app expresses every surface/text colour through the Tailwind `slate`
- * scale and every accent through `indigo`. Re-pointing those theme variables
- * under `.dark` re-skins the whole UI without touching a single component.
- * Unlayered so it wins over Tailwind's `@layer theme` defaults.
+ * Pastel dark palette — the same lavender-led hues as light mode, re-lit for
+ * dark surfaces. Unlayered so it wins over Tailwind's `@layer theme` defaults.
  */
 .dark {
-  --color-slate-950: #202225;
-  --color-slate-900: #2f3136;
-  --color-slate-800: #36393f;
-  --color-slate-700: #40444b;
-  --color-slate-600: #4f545c;
-  --color-slate-500: #a8adb3;
-  --color-slate-400: #b9bbbe;
-  --color-slate-300: #dcddde;
-  --color-slate-200: #e3e5e8;
-  --color-slate-100: #ffffff;
+  --color-slate-50: #f8f8fc;
+  --color-slate-100: #f0f0f8;
+  --color-slate-200: #e0e0ee;
+  --color-slate-300: #cfcfe4;
+  --color-slate-400: #b6b6d0;
+  --color-slate-500: #9d9db8;
+  --color-slate-600: #5a5a75;
+  --color-slate-700: #3f3f55;
+  --color-slate-800: #2b2b3b;
+  --color-slate-900: #1f1f2c;
+  --color-slate-950: #16161f;
 
-  --color-indigo-950: #2e3358;
-  --color-indigo-800: #4752c4;
-  --color-indigo-600: #7289da;
-  --color-indigo-500: #7983d4;
-  --color-indigo-400: #8ea1e1;
-  --color-indigo-300: #a5b3f0;
-  --color-indigo-200: #c3ccf5;
-  --color-indigo-100: #e0e6ff;
+  --color-indigo-50: #f3f3fe;
+  --color-indigo-100: #e6e6fd;
+  --color-indigo-200: #d3d3fb;
+  --color-indigo-300: #bfbdf8;
+  --color-indigo-400: #a7a5f3;
+  --color-indigo-500: #918eed;
+  --color-indigo-600: #7d7ae0;
+  --color-indigo-700: #6a67c4;
+  --color-indigo-800: #56549f;
+  --color-indigo-900: #43417b;
+  --color-indigo-950: #2a294f;
+
+  --color-emerald-50: #eefaf3;
+  --color-emerald-100: #dcf5e8;
+  --color-emerald-200: #c6ecd8;
+  --color-emerald-300: #a7e3c4;
+  --color-emerald-400: #7fd0a8;
+  --color-emerald-500: #5fbb8c;
+  --color-emerald-600: #4aa374;
+  --color-emerald-700: #3c835e;
+  --color-emerald-800: #31684b;
+  --color-emerald-900: #27513b;
+  --color-emerald-950: #173323;
+
+  --color-amber-50: #fdf8ec;
+  --color-amber-100: #fbf0cd;
+  --color-amber-200: #f6e2ad;
+  --color-amber-300: #f0d38a;
+  --color-amber-400: #e6bd5c;
+  --color-amber-500: #d4a637;
+  --color-amber-600: #b98c22;
+  --color-amber-700: #96701b;
+  --color-amber-800: #785a1b;
+  --color-amber-900: #5f481b;
+  --color-amber-950: #392b10;
+
+  --color-red-50: #fdf0f0;
+  --color-red-100: #fbdada;
+  --color-red-200: #f6c0c0;
+  --color-red-300: #f0a3a3;
+  --color-red-400: #e67d7d;
+  --color-red-500: #d65f5f;
+  --color-red-600: #bd4747;
+  --color-red-700: #9c3a3a;
+  --color-red-800: #7d3030;
+  --color-red-900: #612727;
+  --color-red-950: #3d1818;
+
+  --color-sky-50: #eef7fc;
+  --color-sky-100: #d9eef8;
+  --color-sky-200: #bfe0f1;
+  --color-sky-300: #9dd0ea;
+  --color-sky-400: #6fb8dd;
+  --color-sky-500: #4a9dc9;
+  --color-sky-600: #3683ad;
+  --color-sky-700: #2c6a8c;
+  --color-sky-800: #265570;
+  --color-sky-900: #204459;
+  --color-sky-950: #142a39;
+
+  --color-violet-50: #f6f1fd;
+  --color-violet-100: #ece0fa;
+  --color-violet-200: #ddc7f1;
+  --color-violet-300: #cba9e8;
+  --color-violet-400: #b184dc;
+  --color-violet-500: #9a63c9;
+  --color-violet-600: #824eab;
+  --color-violet-700: #6b408c;
+  --color-violet-800: #57366f;
+  --color-violet-900: #452c58;
+  --color-violet-950: #2c1c38;
 }
 
 /*

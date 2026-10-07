@@ -13,9 +13,8 @@ import { useUiStore } from '../stores/uiStore';
 import type { Theme } from '../lib/theme';
 
 const THEME_OPTIONS: { value: Theme; label: string; description: string }[] = [
-  { value: 'light', label: 'Light', description: 'Always use the light theme.' },
-  { value: 'dark', label: 'Dark', description: 'Always use the dark theme.' },
-  { value: 'system', label: 'System', description: 'Follow your operating system preference.' },
+  { value: 'light', label: 'Light', description: 'Use the light theme.' },
+  { value: 'dark', label: 'Dark', description: 'Use the dark theme.' },
 ];
 
 export function SettingsPage() {

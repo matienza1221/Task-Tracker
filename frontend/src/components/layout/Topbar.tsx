@@ -11,23 +11,21 @@ import { ChevronDownIcon, LogOutIcon, MenuIcon, MoonIcon, SearchIcon, SettingsIc
 import { COMMAND_PALETTE_EVENT } from './CommandPalette';
 import { NotificationBell } from './NotificationBell';
 
-const THEME_ORDER = ['light', 'dark', 'system'] as const;
-
 function ThemeToggle() {
   const theme = useUiStore((state) => state.theme);
   const setTheme = useUiStore((state) => state.setTheme);
-  const next = THEME_ORDER[(THEME_ORDER.indexOf(theme) + 1) % THEME_ORDER.length];
-  const label = `Switch to ${next} mode`;
+  const isDark = theme === 'dark';
+  const label = `Switch to ${isDark ? 'light' : 'dark'} mode`;
 
   return (
     <button
       type="button"
-      onClick={() => setTheme(next)}
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
       aria-label={label}
       title={label}
       className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
     >
-      {theme === 'dark' ? <MoonIcon className="text-lg" /> : <SunIcon className="text-lg" />}
+      {isDark ? <MoonIcon className="text-lg" /> : <SunIcon className="text-lg" />}
     </button>
   );
 }

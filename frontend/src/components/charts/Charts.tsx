@@ -1,4 +1,5 @@
 import { cn } from '../../lib/cn';
+import { PASTEL } from '../../lib/palette';
 
 export interface ChartPoint {
   label: string;
@@ -18,7 +19,7 @@ function describe(title: string, points: ChartPoint[]): string {
 export function LineChart({
   points,
   title,
-  color = '#6366f1',
+  color = PASTEL.lavender,
   height = 160,
   className,
 }: {
@@ -99,7 +100,7 @@ export function BarChart({ bars, title, className }: { bars: BarDatum[]; title?:
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
             <div
               className="h-full rounded-full"
-              style={{ width: `${(bar.value / max) * 100}%`, backgroundColor: bar.color ?? '#6366f1' }}
+              style={{ width: `${(bar.value / max) * 100}%`, backgroundColor: bar.color ?? PASTEL.lavender }}
             />
           </div>
         </div>
@@ -149,7 +150,7 @@ export function DonutChart({
               r={radius}
               fill="none"
               strokeWidth="16"
-              stroke={slice.color ?? '#6366f1'}
+              stroke={slice.color ?? PASTEL.lavender}
               strokeDasharray={`${length} ${circumference - length}`}
               strokeDashoffset={-offset}
               transform="rotate(-90 50 50)"
@@ -165,7 +166,7 @@ export function DonutChart({
       <ul className="space-y-1 text-xs">
         {slices.map((slice) => (
           <li key={slice.label} className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-            <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: slice.color ?? '#6366f1' }} />
+            <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: slice.color ?? PASTEL.lavender }} />
             <span className="min-w-[90px]">{slice.label}</span>
             <span className="tabular-nums text-slate-500 dark:text-slate-400">
               {slice.value} · {Math.round((slice.value / total) * 100)}%

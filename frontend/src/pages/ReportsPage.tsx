@@ -9,6 +9,7 @@ import { useProjectAnalytics } from '../features/analytics/queries';
 import { useProjects } from '../features/projects/queries';
 import { cn } from '../lib/cn';
 import { formatDate } from '../lib/format';
+import { PASTEL } from '../lib/palette';
 
 function Kpi({ label, value, tone = 'neutral', hint }: { label: string; value: string | number; tone?: 'neutral' | 'success' | 'danger' | 'warning'; hint?: string }) {
   const tones = {
@@ -152,12 +153,12 @@ export function ReportsPage() {
                 <LineChart
                   title="Remaining tasks per day"
                   points={analytics.data.burndown.map((point) => ({ label: point.date, value: point.remaining }))}
-                  color="#6366f1"
+                  color={PASTEL.lavender}
                 />
                 <LineChart
                   title="Ideal remaining tasks per day"
                   points={analytics.data.burndown.map((point) => ({ label: point.date, value: point.ideal }))}
-                  color="#cbd5e1"
+                  color={PASTEL.slateLight}
                   height={80}
                 />
               </CardBody>
@@ -169,12 +170,12 @@ export function ReportsPage() {
                 <LineChart
                   title="Tasks created per day"
                   points={analytics.data.createdTrend.map((point) => ({ label: point.date, value: point.count }))}
-                  color="#0ea5e9"
+                  color={PASTEL.sky}
                 />
                 <LineChart
                   title="Tasks completed per day"
                   points={analytics.data.completedTrend.map((point) => ({ label: point.date, value: point.count }))}
-                  color="#22c55e"
+                  color={PASTEL.mint}
                 />
               </CardBody>
             </Card>
@@ -189,7 +190,7 @@ export function ReportsPage() {
                   bars={analytics.data.velocity.map((point) => ({
                     label: `Week of ${point.weekStart}`,
                     value: point.completed,
-                    color: '#8b5cf6',
+                    color: PASTEL.lilac,
                   }))}
                 />
               </CardBody>

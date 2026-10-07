@@ -7,40 +7,40 @@ import { PERMISSIONS, PERMISSION_DESCRIPTIONS, ROLE_PERMISSIONS } from './permis
  */
 
 export const PROJECT_STATUS_SEED = [
-  { key: 'PLANNING', name: 'Planning', category: 'PLANNING', color: '#8b5cf6', sortOrder: 10, isDefault: true },
-  { key: 'ACTIVE', name: 'Active', category: 'ACTIVE', color: '#22c55e', sortOrder: 20, isDefault: false },
-  { key: 'ON_HOLD', name: 'On Hold', category: 'ON_HOLD', color: '#f59e0b', sortOrder: 30, isDefault: false },
-  { key: 'COMPLETED', name: 'Completed', category: 'COMPLETED', color: '#0ea5e9', sortOrder: 40, isDefault: false },
-  { key: 'ARCHIVED', name: 'Archived', category: 'ARCHIVED', color: '#64748b', sortOrder: 50, isDefault: false },
+  { key: 'PLANNING', name: 'Planning', category: 'PLANNING', color: '#a976e0', sortOrder: 10, isDefault: true },
+  { key: 'ACTIVE', name: 'Active', category: 'ACTIVE', color: '#66c294', sortOrder: 20, isDefault: false },
+  { key: 'ON_HOLD', name: 'On Hold', category: 'ON_HOLD', color: '#e3b23c', sortOrder: 30, isDefault: false },
+  { key: 'COMPLETED', name: 'Completed', category: 'COMPLETED', color: '#55abdb', sortOrder: 40, isDefault: false },
+  { key: 'ARCHIVED', name: 'Archived', category: 'ARCHIVED', color: '#9d9db8', sortOrder: 50, isDefault: false },
 ] as const;
 
 export const TASK_STATUS_SEED = [
-  { key: 'BACKLOG', name: 'Backlog', category: 'BACKLOG', color: '#64748b', sortOrder: 10, isDefault: true },
-  { key: 'TODO', name: 'To Do', category: 'TODO', color: '#8b5cf6', sortOrder: 20, isDefault: false },
-  { key: 'IN_PROGRESS', name: 'In Progress', category: 'IN_PROGRESS', color: '#3b82f6', sortOrder: 30, isDefault: false },
-  { key: 'IN_REVIEW', name: 'In Review', category: 'REVIEW', color: '#f59e0b', sortOrder: 40, isDefault: false },
-  { key: 'TESTING', name: 'Testing', category: 'TESTING', color: '#06b6d4', sortOrder: 50, isDefault: false },
-  { key: 'BLOCKED', name: 'Blocked', category: 'BLOCKED', color: '#ef4444', sortOrder: 60, isDefault: false },
-  { key: 'DONE', name: 'Done', category: 'DONE', color: '#22c55e', sortOrder: 70, isDefault: false },
-  { key: 'CANCELLED', name: 'Cancelled', category: 'CANCELLED', color: '#94a3b8', sortOrder: 80, isDefault: false },
+  { key: 'BACKLOG', name: 'Backlog', category: 'BACKLOG', color: '#9d9db8', sortOrder: 10, isDefault: true },
+  { key: 'TODO', name: 'To Do', category: 'TODO', color: '#a976e0', sortOrder: 20, isDefault: false },
+  { key: 'IN_PROGRESS', name: 'In Progress', category: 'IN_PROGRESS', color: '#8280e9', sortOrder: 30, isDefault: false },
+  { key: 'IN_REVIEW', name: 'In Review', category: 'REVIEW', color: '#e3b23c', sortOrder: 40, isDefault: false },
+  { key: 'TESTING', name: 'Testing', category: 'TESTING', color: '#55abdb', sortOrder: 50, isDefault: false },
+  { key: 'BLOCKED', name: 'Blocked', category: 'BLOCKED', color: '#e57373', sortOrder: 60, isDefault: false },
+  { key: 'DONE', name: 'Done', category: 'DONE', color: '#66c294', sortOrder: 70, isDefault: false },
+  { key: 'CANCELLED', name: 'Cancelled', category: 'CANCELLED', color: '#b6b6d0', sortOrder: 80, isDefault: false },
 ] as const;
 
 export const TASK_PRIORITY_SEED = [
-  { key: 'CRITICAL', name: 'Critical', weight: 4, color: '#dc2626', sortOrder: 10, isDefault: false },
-  { key: 'HIGH', name: 'High', weight: 3, color: '#f97316', sortOrder: 20, isDefault: false },
-  { key: 'MEDIUM', name: 'Medium', weight: 2, color: '#eab308', sortOrder: 30, isDefault: true },
-  { key: 'LOW', name: 'Low', weight: 1, color: '#38bdf8', sortOrder: 40, isDefault: false },
+  { key: 'CRITICAL', name: 'Critical', weight: 4, color: '#e57373', sortOrder: 10, isDefault: false },
+  { key: 'HIGH', name: 'High', weight: 3, color: '#e8a06a', sortOrder: 20, isDefault: false },
+  { key: 'MEDIUM', name: 'Medium', weight: 2, color: '#e3b23c', sortOrder: 30, isDefault: true },
+  { key: 'LOW', name: 'Low', weight: 1, color: '#55abdb', sortOrder: 40, isDefault: false },
 ] as const;
 
 export const TASK_TYPE_SEED = [
-  { key: 'FEATURE', name: 'Feature', icon: 'sparkles', color: '#6366f1', sortOrder: 10, isDefault: true },
-  { key: 'BUG', name: 'Bug', icon: 'bug', color: '#ef4444', sortOrder: 20, isDefault: false },
-  { key: 'IMPROVEMENT', name: 'Improvement', icon: 'trending-up', color: '#0ea5e9', sortOrder: 30, isDefault: false },
-  { key: 'RESEARCH', name: 'Research', icon: 'search', color: '#a855f7', sortOrder: 40, isDefault: false },
-  { key: 'DOCUMENTATION', name: 'Documentation', icon: 'book', color: '#14b8a6', sortOrder: 50, isDefault: false },
-  { key: 'MAINTENANCE', name: 'Maintenance', icon: 'wrench', color: '#f59e0b', sortOrder: 60, isDefault: false },
-  { key: 'DEPLOYMENT', name: 'Deployment', icon: 'rocket', color: '#22c55e', sortOrder: 70, isDefault: false },
-  { key: 'TESTING', name: 'Testing', icon: 'flask', color: '#06b6d4', sortOrder: 80, isDefault: false },
+  { key: 'FEATURE', name: 'Feature', icon: 'sparkles', color: '#8280e9', sortOrder: 10, isDefault: true },
+  { key: 'BUG', name: 'Bug', icon: 'bug', color: '#e57373', sortOrder: 20, isDefault: false },
+  { key: 'IMPROVEMENT', name: 'Improvement', icon: 'trending-up', color: '#55abdb', sortOrder: 30, isDefault: false },
+  { key: 'RESEARCH', name: 'Research', icon: 'search', color: '#a976e0', sortOrder: 40, isDefault: false },
+  { key: 'DOCUMENTATION', name: 'Documentation', icon: 'book', color: '#6fc2b0', sortOrder: 50, isDefault: false },
+  { key: 'MAINTENANCE', name: 'Maintenance', icon: 'wrench', color: '#e3b23c', sortOrder: 60, isDefault: false },
+  { key: 'DEPLOYMENT', name: 'Deployment', icon: 'rocket', color: '#66c294', sortOrder: 70, isDefault: false },
+  { key: 'TESTING', name: 'Testing', icon: 'flask', color: '#55abdb', sortOrder: 80, isDefault: false },
 ] as const;
 
 export interface SeedSummary {

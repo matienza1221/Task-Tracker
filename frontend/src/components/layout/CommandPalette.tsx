@@ -31,8 +31,8 @@ interface PaletteItem {
   leading?: React.ReactNode;
 }
 
-function buildActions(user: AuthUser | undefined, navigate: (path: string) => void, theme: string, setTheme: (t: 'light' | 'dark' | 'system') => void): CommandAction[] {
-  const nextTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
+function buildActions(user: AuthUser | undefined, navigate: (path: string) => void, theme: string, setTheme: (t: 'light' | 'dark') => void): CommandAction[] {
+  const nextTheme = theme === 'dark' ? 'light' : 'dark';
   const actions: CommandAction[] = [
     { id: 'go-dashboard', label: 'Go to dashboard', hint: 'Navigation', keywords: ['home', 'overview'], run: () => navigate('/dashboard') },
     { id: 'go-projects', label: 'Go to projects', hint: 'Navigation', keywords: ['list'], run: () => navigate('/projects') },
@@ -43,7 +43,7 @@ function buildActions(user: AuthUser | undefined, navigate: (path: string) => vo
     { id: 'go-notifications', label: 'Go to notifications', hint: 'Navigation', keywords: ['inbox', 'alerts'], run: () => navigate('/notifications') },
     { id: 'new-project', label: 'Create a new project', hint: 'Create', keywords: ['new', 'add', 'project'], run: () => navigate('/projects?new=1') },
     { id: 'go-settings', label: 'Go to settings', hint: 'Navigation', keywords: ['profile', 'password', 'theme'], run: () => navigate('/settings') },
-    { id: 'toggle-theme', label: `Switch theme to ${nextTheme}`, hint: 'Appearance', keywords: ['dark', 'light', 'system'], run: () => setTheme(nextTheme) },
+    { id: 'toggle-theme', label: `Switch theme to ${nextTheme}`, hint: 'Appearance', keywords: ['dark', 'light'], run: () => setTheme(nextTheme) },
   ];
   if (can(user, 'user:manage')) {
     actions.push({ id: 'go-admin-users', label: 'Manage users', hint: 'Administration', keywords: ['accounts', 'roles'], run: () => navigate('/admin/users') });

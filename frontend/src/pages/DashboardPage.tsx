@@ -10,16 +10,17 @@ import { ArrowRightIcon, CalendarIcon } from '../components/ui/icons';
 import { useMe } from '../features/auth/queries';
 import { useDashboardSummary } from '../features/dashboard/queries';
 import { formatDate, formatRelative, formatRole } from '../lib/format';
+import { PASTEL } from '../lib/palette';
 
 const CATEGORY_COLORS: Record<string, string> = {
-  Backlog: '#64748b',
-  'To Do': '#8b5cf6',
-  'In Progress': '#3b82f6',
-  'In Review': '#f59e0b',
-  Testing: '#06b6d4',
-  Blocked: '#ef4444',
-  Done: '#22c55e',
-  Cancelled: '#94a3b8',
+  Backlog: PASTEL.slate,
+  'To Do': PASTEL.lilac,
+  'In Progress': PASTEL.lavender,
+  'In Review': PASTEL.butter,
+  Testing: PASTEL.sky,
+  Blocked: PASTEL.coral,
+  Done: PASTEL.mint,
+  Cancelled: PASTEL.slateLight,
 };
 
 function StatCard({ label, value, tone = 'neutral', hint }: { label: string; value: number; tone?: 'neutral' | 'success' | 'info' | 'warning' | 'danger'; hint?: string }) {
@@ -136,15 +137,15 @@ export function DashboardPage() {
           />
           <CardBody className="space-y-3">
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg bg-slate-50 py-2 dark:bg-slate-800/60">
+              <div className="rounded-lg bg-slate-50 py-2 dark:bg-slate-500/15">
                 <p className="text-lg font-semibold tabular-nums text-slate-900 dark:text-white">{data.myWork.open}</p>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">Open</p>
               </div>
-              <div className="rounded-lg bg-red-50 py-2 dark:bg-red-950/40">
+              <div className="rounded-lg bg-red-50 py-2 dark:bg-red-500/15">
                 <p className="text-lg font-semibold tabular-nums text-red-600 dark:text-red-400">{data.myWork.overdue}</p>
                 <p className="text-[11px] text-red-600/80 dark:text-red-300/80">Overdue</p>
               </div>
-              <div className="rounded-lg bg-amber-50 py-2 dark:bg-amber-950/40">
+              <div className="rounded-lg bg-amber-50 py-2 dark:bg-amber-500/15">
                 <p className="text-lg font-semibold tabular-nums text-amber-600 dark:text-amber-400">{data.myWork.dueThisWeek}</p>
                 <p className="text-[11px] text-amber-600/80 dark:text-amber-300/80">This week</p>
               </div>

@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { EmptyState, ErrorState, Skeleton } from '../ui/States';
 import { cn } from '../../lib/cn';
+import { PASTEL } from '../../lib/palette';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useCalendar } from '../../features/calendar/queries';
 import type { CalendarData, CalendarFilters } from '../../features/calendar/types';
@@ -77,7 +78,7 @@ function buildEvents(data: CalendarData): Map<string, DayEvent[]> {
       id: `milestone-${milestone.id}`,
       kind: 'milestone',
       label: `${milestone.project.code} · ${milestone.name}`,
-      color: '#8b5cf6',
+      color: PASTEL.lilac,
       href: `/projects/${milestone.project.id}?tab=milestones`,
     });
   }
@@ -142,7 +143,7 @@ export function CalendarMonth({ month, onMonthChange, filters, enabled = true, t
       <span
         aria-hidden="true"
         className="h-1.5 w-1.5 shrink-0 rounded-full"
-        style={{ backgroundColor: event.overdue ? '#dc2626' : event.color }}
+        style={{ backgroundColor: event.overdue ? PASTEL.coral : event.color }}
       />
       <span className="truncate">{event.label}</span>
     </Link>
@@ -310,7 +311,7 @@ export function CalendarMonth({ month, onMonthChange, filters, enabled = true, t
                 <span
                   aria-hidden="true"
                   className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: event.overdue ? '#dc2626' : event.color }}
+                  style={{ backgroundColor: event.overdue ? PASTEL.coral : event.color }}
                 />
                 <span className="min-w-0 flex-1 truncate">{event.label}</span>
               </Link>

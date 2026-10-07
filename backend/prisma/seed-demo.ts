@@ -154,14 +154,14 @@ interface DemoNotification {
 // ---------------------------------------------------------------------------
 
 const MAIN_LABELS: DemoLabel[] = [
-  { name: 'Backend', color: '#0ea5e9' },
-  { name: 'Frontend', color: '#6366f1' },
-  { name: 'Database', color: '#14b8a6' },
-  { name: 'Security', color: '#ef4444' },
-  { name: 'Performance', color: '#f59e0b' },
-  { name: 'DevOps', color: '#8b5cf6' },
-  { name: 'Documentation', color: '#64748b' },
-  { name: 'Tech Debt', color: '#a16207' },
+  { name: 'Backend', color: '#55abdb' },
+  { name: 'Frontend', color: '#8280e9' },
+  { name: 'Database', color: '#6fc2b0' },
+  { name: 'Security', color: '#e57373' },
+  { name: 'Performance', color: '#e3b23c' },
+  { name: 'DevOps', color: '#a976e0' },
+  { name: 'Documentation', color: '#9d9db8' },
+  { name: 'Tech Debt', color: '#b98c22' },
 ];
 
 const MAIN_MILESTONES: DemoMilestone[] = [
@@ -766,9 +766,9 @@ const MAIN_NOTIFICATIONS: DemoNotification[] = [
 // ---------------------------------------------------------------------------
 
 const MOBILE_LABELS: DemoLabel[] = [
-  { name: 'Mobile', color: '#0284c7' },
-  { name: 'iOS', color: '#64748b' },
-  { name: 'Android', color: '#22c55e' },
+  { name: 'Mobile', color: '#4a9dc9' },
+  { name: 'iOS', color: '#9d9db8' },
+  { name: 'Android', color: '#66c294' },
 ];
 
 const MOBILE_MILESTONES: DemoMilestone[] = [
