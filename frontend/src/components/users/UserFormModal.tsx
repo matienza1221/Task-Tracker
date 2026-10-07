@@ -14,7 +14,7 @@ import { toast } from '../../stores/toastStore';
 export interface UserFormModalProps {
   open: boolean;
   onClose: () => void;
-  onCreated: (temporaryPassword: string | null) => void;
+  onCreated: (temporaryPassword: string | null, displayName: string) => void;
 }
 
 export function UserFormModal({ open, onClose, onCreated }: UserFormModalProps) {
@@ -25,7 +25,7 @@ export function UserFormModal({ open, onClose, onCreated }: UserFormModalProps) 
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserFormSchema),
     defaultValues: { email: '', displayName: '', globalRole: 'DEVELOPER', password: '' },
@@ -44,7 +44,7 @@ export function UserFormModal({ open, onClose, onCreated }: UserFormModalProps) 
         onSuccess: (result) => {
           toast.success('User created', `${result.user.displayName} must change the password at first sign-in.`);
           reset();
-          onCreated(result.temporaryPassword);
+          onCreated(result.temporaryPassword, result.user.displayName);
           onClose();
         },
         onError: (error) => setFormError(error.message),
@@ -59,6 +59,7 @@ export function UserFormModal({ open, onClose, onCreated }: UserFormModalProps) 
       title="New user"
       description="Users receive a temporary password and must change it at first sign-in."
       size="md"
+      dirty={isDirty}
     >
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         {formError && <Alert variant="error">{formError}</Alert>}

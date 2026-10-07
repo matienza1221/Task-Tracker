@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -76,6 +76,7 @@ describe('SavedViewsBar', () => {
     renderBar();
 
     await user.click(screen.getByLabelText('Delete saved view Overdue'));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete view' }));
     expect(removeMutate).toHaveBeenCalledWith('v2', expect.anything());
   });
 

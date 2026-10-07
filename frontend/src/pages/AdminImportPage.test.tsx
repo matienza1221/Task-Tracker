@@ -14,6 +14,10 @@ vi.mock('../features/imports/api', () => ({
   fetchImportJobs: vi.fn(),
 }));
 
+vi.mock('../features/imports/template', () => ({
+  downloadImportTemplate: vi.fn(),
+}));
+
 vi.mock('../features/projects/queries', () => ({
   useProjects: () => ({
     data: {
@@ -67,10 +71,12 @@ vi.mock('../features/projects/queries', () => ({
 }));
 
 const { uploadImportFile, previewImportJob, commitImportJob, fetchImportJobs } = await import('../features/imports/api');
+const { downloadImportTemplate } = await import('../features/imports/template');
 const mockedUpload = vi.mocked(uploadImportFile);
 const mockedPreview = vi.mocked(previewImportJob);
 const mockedCommit = vi.mocked(commitImportJob);
 const mockedJobs = vi.mocked(fetchImportJobs);
+const mockedDownloadTemplate = vi.mocked(downloadImportTemplate);
 
 const UPLOAD: ImportUploadResult = {
   job: { id: 'job1', filename: 'tracker.csv', sourceFormat: 'CSV', status: 'UPLOADED', projectId: null, mapping: null, summary: null, createdAt: '', committedAt: null },
@@ -114,7 +120,16 @@ describe('AdminImportPage', () => {
     mockedPreview.mockReset();
     mockedCommit.mockReset();
     mockedJobs.mockReset();
+    mockedDownloadTemplate.mockReset();
     mockedJobs.mockResolvedValue({ data: { imports: [] }, meta: { total: 0, page: 1, pageSize: 10 } });
+  });
+
+  it('offers a downloadable CSV template on the upload step', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: 'Download template' }));
+    expect(mockedDownloadTemplate).toHaveBeenCalledTimes(1);
   });
 
   it('walks through upload → mapping with suggested columns', async () => {

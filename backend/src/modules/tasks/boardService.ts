@@ -2,6 +2,7 @@ import type { Prisma, User } from '@prisma/client';
 import { prisma } from '../../db/prisma';
 import { assertProjectPermission, projectRoleHasPermission } from '../../lib/access';
 import { conflict, forbidden, notFound, validationError } from '../../lib/errors';
+import { optimisticWrite } from '../../lib/optimistic';
 import { recalculateProjectProgress, recalculateTaskProgress } from '../../lib/progress';
 import { recordActivity } from '../activity/service';
 import { recordAudit } from '../audit/service';
@@ -147,20 +148,24 @@ export async function moveTask(
     const index = Math.max(0, Math.min(targetIndex, ordered.length));
     ordered.splice(index, 0, task.id);
 
-    await tx.task.update({
-      where: { id: task.id },
-      data: {
-        statusId: targetStatus.id,
-        version: { increment: 1 },
-        ...(statusChanged
-          ? statusSideEffects(
-              { category: currentStatus.category, progress: task.progress },
-              targetStatus.category,
-              hasChildren,
-            )
-          : {}),
-      },
-    });
+    await optimisticWrite(
+      () =>
+        tx.task.update({
+          where: { id: task.id, version },
+          data: {
+            statusId: targetStatus.id,
+            version: { increment: 1 },
+            ...(statusChanged
+              ? statusSideEffects(
+                  { category: currentStatus.category, progress: task.progress },
+                  targetStatus.category,
+                  hasChildren,
+                )
+              : {}),
+          },
+        }),
+      'This task changed while you were moving it. The board has been refreshed.',
+    );
 
     await Promise.all(
       ordered.map((id, position) => tx.task.update({ where: { id }, data: { sortOrder: position } })),

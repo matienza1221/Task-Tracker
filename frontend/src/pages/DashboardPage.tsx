@@ -6,18 +6,10 @@ import { ErrorState, Skeleton } from '../components/ui/States';
 import { DonutChart } from '../components/charts/Charts';
 import { BlockedBadge } from '../components/tasks/BlockedBadge';
 import { TaskPriorityBadge, TaskStatusBadge } from '../components/tasks/TaskBadges';
-import {
-  ArrowRightIcon,
-  CalendarIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  RocketIcon,
-  ShieldIcon,
-} from '../components/ui/icons';
+import { ArrowRightIcon, CalendarIcon } from '../components/ui/icons';
 import { useMe } from '../features/auth/queries';
 import { useDashboardSummary } from '../features/dashboard/queries';
 import { formatDate, formatRelative, formatRole } from '../lib/format';
-import { ROADMAP } from '../lib/roadmap';
 
 const CATEGORY_COLORS: Record<string, string> = {
   Backlog: '#64748b',
@@ -273,47 +265,9 @@ export function DashboardPage() {
             <p>
               Last sign-in: {user?.lastLoginAt ? `${formatRelative(user.lastLoginAt)}` : '—'}
             </p>
-            <div className="space-y-2 border-t border-slate-100 pt-3 text-sm dark:border-slate-800">
-              <p className="flex items-start gap-2 text-slate-600 dark:text-slate-300">
-                <ShieldIcon className="mt-0.5 shrink-0 text-base text-emerald-500" />
-                HTTP-only session, CSRF tokens, rate limiting and audit logging are active.
-              </p>
-              <p className="flex items-start gap-2 text-slate-600 dark:text-slate-300">
-                <ClockIcon className="mt-0.5 shrink-0 text-base text-sky-500" />
-                Sessions expire after inactivity and are revoked on password change.
-              </p>
-            </div>
           </CardBody>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader
-          title="Implementation status"
-          description="Built incrementally; each phase keeps the previous ones working."
-          actions={<RocketIcon className="text-base text-indigo-500" />}
-        />
-        <CardBody className="divide-y divide-slate-100 p-0 dark:divide-slate-800">
-          {ROADMAP.map((phase) => (
-            <div key={phase.phase} className="flex items-start gap-3 px-5 py-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                {phase.status === 'complete' ? <CheckCircleIcon className="text-sm text-emerald-500" /> : phase.phase}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                    Phase {phase.phase} — {phase.title}
-                  </p>
-                  <Badge variant={phase.status === 'complete' ? 'success' : phase.status === 'in_progress' ? 'warning' : 'neutral'}>
-                    {phase.status === 'complete' ? 'Complete' : phase.status === 'in_progress' ? 'In progress' : 'Planned'}
-                  </Badge>
-                </div>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{phase.summary}</p>
-              </div>
-            </div>
-          ))}
-        </CardBody>
-      </Card>
     </div>
   );
 }

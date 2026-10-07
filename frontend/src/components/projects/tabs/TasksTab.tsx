@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Alert } from '../../ui/Alert';
 import { Button } from '../../ui/Button';
 import { Card, CardBody, CardHeader } from '../../ui/Card';
+import { Input } from '../../ui/Input';
 import { Modal } from '../../ui/Modal';
 import { Pagination } from '../../ui/Pagination';
 import { EmptyState, ErrorState, Skeleton } from '../../ui/States';
@@ -17,13 +18,14 @@ import { TimelineView } from '../../timeline/TimelineView';
 import { useTimeline } from '../../../features/timeline/queries';
 import { useMilestones } from '../../../features/projects/queries';
 import { useMembers } from '../../../features/projects/queries';
-import { useBoard, useProjectTasks } from '../../../features/tasks/queries';
+import { useBoard, useCreateTask, useProjectTasks } from '../../../features/tasks/queries';
 import { filtersToSearchParams, searchParamsToFilters } from '../../../features/tasks/board';
 import { projectRoleCan } from '../../../features/auth/roles';
 import type { BoardFilters, TaskFilters } from '../../../features/tasks/types';
 import type { Project } from '../../../features/projects/types';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { cn } from '../../../lib/cn';
+import { toast } from '../../../stores/toastStore';
 
 const PAGE_SIZE = 25;
 
@@ -37,7 +39,9 @@ export function TasksTab({ project }: { project: Project }) {
   const [createStatusId, setCreateStatusId] = useState<string | undefined>(undefined);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeViewId, setActiveViewId] = useState<string | undefined>(undefined);
+  const [quickTitle, setQuickTitle] = useState('');
   const debouncedSearch = useDebounce(searchInput, 350);
+  const syncedQRef = useRef(searchParams.get('q') ?? '');
 
   const viewParam = searchParams.get('view');
   const view: TaskView = viewParam === 'board' || viewParam === 'calendar' || viewParam === 'timeline' ? viewParam : 'list';
@@ -63,12 +67,14 @@ export function TasksTab({ project }: { project: Project }) {
       assignee: filters.assignee,
       label: filters.label,
       milestone: filters.milestone,
+      blocked: filters.blocked,
       includeCancelled: searchParams.get('cancelled') === 'true' || undefined,
       scope: filters.scope === 'mine' ? 'mine' : filters.scope === 'unassigned' ? 'unassigned' : 'all',
     }),
     [debouncedSearch, filters, searchParams],
   );
 
+  const createTask = useCreateTask(project.id);
   const tasks = useProjectTasks(project.id, filters, view === 'list');
   const board = useBoard(project.id, boardFilters, view === 'board');
   const timeline = useTimeline(project.id, view === 'timeline');
@@ -86,9 +92,21 @@ export function TasksTab({ project }: { project: Project }) {
 
   useEffect(() => {
     const current = searchParams.get('q') ?? '';
-    if (current !== debouncedSearch) setParam('q', debouncedSearch || null);
+    if (current !== debouncedSearch) {
+      syncedQRef.current = debouncedSearch;
+      setParam('q', debouncedSearch || null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch]);
+
+  // Resync the input when the URL changes externally (back/forward, links).
+  useEffect(() => {
+    const urlQ = searchParams.get('q') ?? '';
+    if (urlQ !== syncedQRef.current) {
+      syncedQRef.current = urlQ;
+      setSearchInput(urlQ);
+    }
+  }, [searchParams]);
 
   const updateFilters = (partial: Partial<TaskFilters>) => {
     setActiveViewId(undefined);
@@ -102,7 +120,9 @@ export function TasksTab({ project }: { project: Project }) {
     if ('priority' in partial) setList('priority', partial.priority);
     if ('assignee' in partial) setList('assignee', partial.assignee);
     if ('label' in partial) setList('label', partial.label);
+    if ('milestone' in partial) setList('milestone', partial.milestone);
     if ('overdue' in partial) partial.overdue ? next.set('overdue', 'true') : next.delete('overdue');
+    if ('blocked' in partial) partial.blocked ? next.set('blocked', 'true') : next.delete('blocked');
     if ('scope' in partial) partial.scope === 'mine' ? next.set('mine', 'true') : next.delete('mine');
     if ('includeCompleted' in partial) partial.includeCompleted ? next.set('completed', 'true') : next.delete('completed');
     if ('sort' in partial && partial.sort) next.set('sort', partial.sort);
@@ -121,17 +141,38 @@ export function TasksTab({ project }: { project: Project }) {
     setSearchInput(savedFilters.q ?? '');
     setSelectedIds([]);
     setActiveViewId(viewId);
-    setSearchParams(filtersToSearchParams(savedFilters), { replace: true });
+    const params = filtersToSearchParams(savedFilters);
+    const currentView = searchParams.get('view');
+    if (currentView) params.set('view', currentView);
+    setSearchParams(params, { replace: true });
   };
 
   const items = tasks.data?.data.tasks ?? [];
   const columns = board.data?.columns ?? [];
   const listTotal = Number(tasks.data?.meta.total ?? items.length);
   const totalPages = Number(tasks.data?.meta.totalPages ?? 1);
+  const hasActiveFilters = ['q', 'status', 'priority', 'assignee', 'label', 'milestone', 'overdue', 'mine', 'completed', 'blocked'].some(
+    (key) => searchParams.has(key),
+  );
 
   const openCreate = (statusId?: string) => {
     setCreateStatusId(statusId);
     setCreateOpen(true);
+  };
+
+  const quickAdd = () => {
+    const title = quickTitle.trim();
+    if (!title) return;
+    createTask.mutate(
+      { title },
+      {
+        onSuccess: (result) => {
+          toast.success('Task created', result.task.displayKey);
+          setQuickTitle('');
+        },
+        onError: (error) => toast.error('Could not create task', error.message),
+      },
+    );
   };
 
   return (
@@ -174,22 +215,42 @@ export function TasksTab({ project }: { project: Project }) {
         </div>
       </div>
 
-      <SavedViewsBar
-        projectId={project.id}
-        currentFilters={filters}
-        activeViewId={activeViewId}
-        onApply={applySavedView}
-      />
+      {(view === 'list' || view === 'board') && (
+        <>
+          <SavedViewsBar
+            projectId={project.id}
+            currentFilters={filters}
+            activeViewId={activeViewId}
+            onApply={applySavedView}
+          />
 
-      <TaskFiltersBar
-        filters={filters}
-        searchValue={searchInput}
-        onSearchChange={setSearchInput}
-        onChange={updateFilters}
-        onReset={resetFilters}
-        members={members.data?.members ?? []}
-        milestones={(milestones.data?.milestones ?? []).map((milestone) => ({ id: milestone.id, name: milestone.name }))}
-      />
+          <TaskFiltersBar
+            filters={filters}
+            searchValue={searchInput}
+            onSearchChange={setSearchInput}
+            onChange={updateFilters}
+            onReset={resetFilters}
+            showStatus={view === 'list'}
+            showSort={view === 'list'}
+            showOverdue={view === 'list'}
+            showCompleted={view === 'list'}
+            members={members.data?.members ?? []}
+            milestones={(milestones.data?.milestones ?? []).map((milestone) => ({ id: milestone.id, name: milestone.name }))}
+          />
+
+          {view === 'board' && (
+            <label className="flex w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <input
+                type="checkbox"
+                checked={searchParams.get('cancelled') === 'true'}
+                onChange={(event) => setParam('cancelled', event.target.checked ? 'true' : null)}
+                className="h-4 w-4 rounded border-slate-300 accent-indigo-600 dark:border-slate-600"
+              />
+              Show cancelled
+            </label>
+          )}
+        </>
+      )}
 
       {view === 'list' && canBulk && selectedIds.length > 0 && (
         <BulkActionsBar
@@ -226,6 +287,30 @@ export function TasksTab({ project }: { project: Project }) {
       {view === 'list' ? (
         <Card>
           <CardHeader title="Work items" />
+          {canCreate && (
+            <CardBody className="border-b border-slate-100 pb-4 dark:border-slate-800">
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  quickAdd();
+                }}
+                className="flex items-end gap-2"
+              >
+                <div className="flex-1">
+                  <Input
+                    label=""
+                    aria-label="Quick add task"
+                    placeholder="Quick add a task and press Enter…"
+                    value={quickTitle}
+                    onChange={(event) => setQuickTitle(event.target.value)}
+                  />
+                </div>
+                <Button type="submit" disabled={!quickTitle.trim()} loading={createTask.isPending}>
+                  Add
+                </Button>
+              </form>
+            </CardBody>
+          )}
           {tasks.isLoading && (
             <CardBody className="space-y-3">
               <Skeleton className="h-10 w-full" />
@@ -241,8 +326,16 @@ export function TasksTab({ project }: { project: Project }) {
           {!tasks.isLoading && !tasks.isError && items.length === 0 && (
             <CardBody>
               <EmptyState
-                title="No tasks match these filters"
-                description={canCreate ? 'Adjust the filters or create a new task.' : 'Tasks created by the team appear here.'}
+                title={hasActiveFilters ? 'No tasks match these filters' : 'No tasks yet'}
+                description={
+                  hasActiveFilters
+                    ? canCreate
+                      ? 'Adjust the filters or create a new task.'
+                      : 'Adjust the filters to see more.'
+                    : canCreate
+                      ? 'Create the first task for this project.'
+                      : 'Tasks created by the team will appear here.'
+                }
                 action={canCreate ? <Button onClick={() => openCreate()}>New task</Button> : undefined}
               />
             </CardBody>

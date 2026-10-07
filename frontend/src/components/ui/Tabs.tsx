@@ -70,10 +70,28 @@ export function Tabs({ tabs, value, onChange, className }: TabsProps) {
   );
 }
 
-export function TabPanel({ id, value, children }: { id: string; value: string; children: ReactNode }) {
-  if (id !== value) return null;
+export function TabPanel({
+  id,
+  value,
+  children,
+  keepMounted = false,
+}: {
+  id: string;
+  value: string;
+  children: ReactNode;
+  /** Keep the panel in the DOM (hidden) when inactive, preserving its state. */
+  keepMounted?: boolean;
+}) {
+  const active = id === value;
+  if (!active && !keepMounted) return null;
   return (
-    <div role="tabpanel" id={`panel-${id}`} aria-labelledby={`tab-${id}`} tabIndex={0}>
+    <div
+      role="tabpanel"
+      id={`panel-${id}`}
+      aria-labelledby={`tab-${id}`}
+      hidden={!active}
+      tabIndex={0}
+    >
       {children}
     </div>
   );

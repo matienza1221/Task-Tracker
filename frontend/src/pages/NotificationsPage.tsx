@@ -134,6 +134,7 @@ export function NotificationsPage() {
                 className={cn('flex flex-wrap items-start gap-3 px-5 py-4', !notification.isRead && 'bg-indigo-50/40 dark:bg-indigo-950/20')}
               >
                 <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', notification.isRead ? 'bg-slate-300 dark:bg-slate-600' : 'bg-indigo-500')} />
+                <span className="sr-only">{notification.isRead ? 'Read' : 'Unread'}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
@@ -156,12 +157,11 @@ export function NotificationsPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  loading={markRead.isPending}
+                  loading={markRead.isPending && markRead.variables?.notificationId === notification.id}
                   onClick={() =>
                     markRead.mutate(
                       { notificationId: notification.id, read: !notification.isRead },
                       {
-                        onSuccess: () => toast.success(notification.isRead ? 'Marked as unread' : 'Marked as read'),
                         onError: (error) => toast.error('Could not update notification', error.message),
                       },
                     )

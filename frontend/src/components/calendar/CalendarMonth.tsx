@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../ui/Button';
+import { Modal } from '../ui/Modal';
 import { EmptyState, ErrorState, Skeleton } from '../ui/States';
 import { cn } from '../../lib/cn';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useCalendar } from '../../features/calendar/queries';
 import type { CalendarData, CalendarFilters } from '../../features/calendar/types';
 import {
@@ -114,7 +116,37 @@ export function CalendarMonth({ month, onMonthChange, filters, enabled = true, t
 
   const events = useMemo(() => buildEvents(calendar.data ?? { from: '', to: '', tasks: [], milestones: [], projects: [], truncated: false }), [calendar.data]);
 
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const isMobile = useMediaQuery('(max-width: 639px)');
+
   const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  // Days of the visible month that have at least one event (mobile agenda).
+  const agendaDays = useMemo(
+    () => days.filter((day) => isSameMonth(day, month) && (events.get(format(day, 'yyyy-MM-dd'))?.length ?? 0) > 0),
+    [days, events, month],
+  );
+
+  const renderEventLink = (event: DayEvent, className: string) => (
+    <Link
+      to={event.href}
+      title={event.label}
+      className={cn(
+        className,
+        event.overdue
+          ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700',
+        event.done && 'opacity-60 line-through',
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className="h-1.5 w-1.5 shrink-0 rounded-full"
+        style={{ backgroundColor: event.overdue ? '#dc2626' : event.color }}
+      />
+      <span className="truncate">{event.label}</span>
+    </Link>
+  );
 
   return (
     <div className="space-y-4">
@@ -160,7 +192,7 @@ export function CalendarMonth({ month, onMonthChange, filters, enabled = true, t
         </div>
       )}
 
-      {!calendar.isLoading && !calendar.isError && (
+      {!calendar.isLoading && !calendar.isError && !isMobile && (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
           <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/60">
             {weekDays.map((day) => (
@@ -192,29 +224,21 @@ export function CalendarMonth({ month, onMonthChange, filters, enabled = true, t
                     >
                       {format(day, 'd')}
                     </span>
-                    {dayEvents.length > 2 && <span className="text-[10px] text-slate-400">+{dayEvents.length - 2}</span>}
+                    {dayEvents.length > 2 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDay(day)}
+                        aria-label={`Show all ${dayEvents.length} events on ${format(day, 'MMMM d')}`}
+                        className="text-[10px] text-indigo-600 hover:underline dark:text-indigo-400"
+                      >
+                        +{dayEvents.length - 2} more
+                      </button>
+                    )}
                   </div>
                   <ul className="space-y-1">
                     {dayEvents.slice(0, 2).map((event) => (
                       <li key={event.id}>
-                        <Link
-                          to={event.href}
-                          title={event.label}
-                          className={cn(
-                            'flex items-center gap-1 rounded px-1 py-0.5 text-[10px] leading-tight',
-                            event.overdue
-                              ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
-                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700',
-                            event.done && 'opacity-60 line-through',
-                          )}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className="h-1.5 w-1.5 shrink-0 rounded-full"
-                            style={{ backgroundColor: event.overdue ? '#dc2626' : event.color }}
-                          />
-                          <span className="truncate">{event.label}</span>
-                        </Link>
+                        {renderEventLink(event, 'flex items-center gap-1 rounded px-1 py-0.5 text-[10px] leading-tight')}
                       </li>
                     ))}
                   </ul>
@@ -223,6 +247,30 @@ export function CalendarMonth({ month, onMonthChange, filters, enabled = true, t
             })}
           </div>
         </div>
+      )}
+
+      {!calendar.isLoading && !calendar.isError && isMobile && agendaDays.length > 0 && (
+        <ul className="space-y-3">
+          {agendaDays.map((day) => {
+            const key = format(day, 'yyyy-MM-dd');
+            const dayEvents = events.get(key) ?? [];
+            return (
+              <li key={key} className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                <p className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                  {isToday(day) ? 'Today · ' : ''}
+                  {format(day, 'EEE, MMM d')}
+                </p>
+                <ul className="space-y-1.5">
+                  {dayEvents.map((event) => (
+                    <li key={event.id}>
+                      {renderEventLink(event, 'flex items-center gap-2 rounded px-2 py-1.5 text-xs leading-tight')}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       {!calendar.isLoading && !calendar.isError && (calendar.data?.tasks.length ?? 0) === 0 && (calendar.data?.milestones.length ?? 0) === 0 && (
@@ -237,6 +285,39 @@ export function CalendarMonth({ month, onMonthChange, filters, enabled = true, t
           Showing the first 500 tasks in this window. Narrow the filters for a complete view.
         </p>
       )}
+
+      <Modal
+        open={Boolean(selectedDay)}
+        onClose={() => setSelectedDay(null)}
+        title={selectedDay ? format(selectedDay, 'EEEE, MMMM d') : ''}
+        description="All events on this day"
+        size="sm"
+      >
+        <ul className="space-y-1.5">
+          {(selectedDay ? events.get(format(selectedDay, 'yyyy-MM-dd')) ?? [] : []).map((event) => (
+            <li key={event.id}>
+              <Link
+                to={event.href}
+                onClick={() => setSelectedDay(null)}
+                className={cn(
+                  'flex items-center gap-2 rounded-lg px-2 py-2 text-sm',
+                  event.overdue
+                    ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700',
+                  event.done && 'opacity-60 line-through',
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: event.overdue ? '#dc2626' : event.color }}
+                />
+                <span className="min-w-0 flex-1 truncate">{event.label}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </Modal>
     </div>
   );
 }

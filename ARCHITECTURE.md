@@ -864,7 +864,7 @@ Compose settings: `name: teamboard`, network `teamboard-net`, `restart: unless-s
 | `DATABASE_URL` | `postgresql://teamboard:***@db:5432/teamboard?schema=public` | Secret |
 | `SESSION_COOKIE_NAME` | `teamboard_session` | |
 | `SESSION_TTL_HOURS` / `SESSION_IDLE_HOURS` | `168` / `24` | |
-| `CORS_ORIGIN` | `https://localhost:5180` | comma-separated allowlist |
+| `CORS_ORIGIN` | `http://localhost:5180` | comma-separated allowlist |
 | `ENABLE_PUBLIC_REGISTRATION` | `false` | |
 | `MAX_UPLOAD_MB` | `10` | |
 | `UPLOAD_DIR` | `/app/uploads` | |

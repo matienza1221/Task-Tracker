@@ -26,6 +26,8 @@ const TYPE_TONES: Record<string, 'indigo' | 'success' | 'warning' | 'danger' | '
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const recent = useRecentNotifications();
   const markRead = useMarkNotificationRead();
@@ -41,11 +43,31 @@ export function NotificationBell() {
     };
     document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
+    menuRef.current?.querySelector<HTMLElement>('button:not([disabled]), a[href]')?.focus();
     return () => {
       document.removeEventListener('mousedown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [open]);
+
+  const onMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const focusables = Array.from(
+      menuRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href]') ?? [],
+    );
+    if (focusables.length === 0) return;
+    const index = focusables.indexOf(document.activeElement as HTMLElement);
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      focusables[(index + 1 + focusables.length) % focusables.length].focus();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      focusables[(index - 1 + focusables.length) % focusables.length].focus();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setOpen(false);
+      triggerRef.current?.focus();
+    }
+  };
 
   const items: AppNotification[] = recent.data?.data.notifications ?? [];
   const unreadCount = Number(recent.data?.meta.unreadCount ?? 0);
@@ -61,6 +83,7 @@ export function NotificationBell() {
   return (
     <div ref={containerRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-haspopup="menu"
@@ -78,8 +101,10 @@ export function NotificationBell() {
 
       {open && (
         <div
+          ref={menuRef}
           role="menu"
           aria-label="Notifications"
+          onKeyDown={onMenuKeyDown}
           className="absolute right-0 z-30 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
         >
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
@@ -119,6 +144,7 @@ export function NotificationBell() {
                     )}
                   >
                     <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', notification.isRead ? 'bg-slate-300 dark:bg-slate-600' : 'bg-indigo-500')} />
+                    <span className="sr-only">{notification.isRead ? 'Read' : 'Unread'}</span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
                         <span className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">

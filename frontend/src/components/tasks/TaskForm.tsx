@@ -5,6 +5,7 @@ import { Alert } from '../ui/Alert';
 import { Button } from '../ui/Button';
 import { DateField } from '../ui/DateField';
 import { Input } from '../ui/Input';
+import { useModalDirty } from '../ui/Modal';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
 import { useVocabularies } from '../../features/meta/queries';
@@ -34,6 +35,7 @@ export function TaskForm({ projectId, task, defaultStatusId, defaultMilestoneId,
   const createTask = useCreateTask(projectId);
   const updateTask = useUpdateTask(task?.id ?? '', projectId);
   const [formError, setFormError] = useState<string | null>(null);
+  const [showMore, setShowMore] = useState(isEdit);
 
   const canSetProgress = !task || task.subtaskCount === 0;
 
@@ -44,7 +46,7 @@ export function TaskForm({ projectId, task, defaultStatusId, defaultMilestoneId,
     watch,
     setValue,
     setError,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: {
@@ -66,6 +68,8 @@ export function TaskForm({ projectId, task, defaultStatusId, defaultMilestoneId,
       labelIds: task?.labels.map((label) => label.id) ?? [],
     },
   });
+
+  useModalDirty(isDirty);
 
   const selectedLabels = watch('labelIds') ?? [];
 
@@ -147,6 +151,7 @@ export function TaskForm({ projectId, task, defaultStatusId, defaultMilestoneId,
 
       <Input
         label="Title"
+        required
         placeholder="Convert monitoring portal to React"
         error={errors.title?.message}
         {...register('title')}
@@ -160,13 +165,8 @@ export function TaskForm({ projectId, task, defaultStatusId, defaultMilestoneId,
         {...register('description')}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Select label="Status" placeholder="Use default" options={statusOptions} error={errors.statusId?.message} {...register('statusId')} />
-        <Select label="Priority" placeholder="Use default" options={priorityOptions} error={errors.priorityId?.message} {...register('priorityId')} />
-      </div>
-
       <div className="grid gap-4 sm:grid-cols-3">
-        <Select label="Type" placeholder="Use default" options={typeOptions} error={errors.typeId?.message} {...register('typeId')} />
+        <Select label="Priority" placeholder="Use default" options={priorityOptions} error={errors.priorityId?.message} {...register('priorityId')} />
         <Select
           label="Assignee"
           placeholder="Unassigned"
@@ -174,92 +174,110 @@ export function TaskForm({ projectId, task, defaultStatusId, defaultMilestoneId,
           error={errors.assigneeId?.message}
           {...register('assigneeId')}
         />
-        <Select
-          label="Milestone"
-          placeholder="None"
-          options={milestoneOptions}
-          error={errors.milestoneId?.message}
-          {...register('milestoneId')}
-        />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <DateField control={control} name="startDate" label="Start date" error={errors.startDate?.message} />
         <DateField control={control} name="dueDate" label="Due date" error={errors.dueDate?.message} />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Input
-          label="Estimated hours"
-          type="number"
-          step="0.5"
-          min="0"
-          error={errors.estimatedHours?.message}
-          {...register('estimatedHours')}
-        />
-        <Input
-          label="Actual hours"
-          type="number"
-          step="0.5"
-          min="0"
-          error={errors.actualHours?.message}
-          {...register('actualHours')}
-        />
-        {canSetProgress ? (
-          <Input
-            label="Progress %"
-            type="number"
-            min="0"
-            max="100"
-            hint={task?.progressMode === 'AUTO' ? 'Derived from subtasks' : undefined}
-            error={errors.progress?.message}
-            {...register('progress')}
-          />
-        ) : (
-          <div className="space-y-1.5">
-            <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">Progress</span>
-            <p className="pt-2 text-xs text-slate-500 dark:text-slate-400">
-              Calculated from {task?.subtaskCount} subtask{task?.subtaskCount === 1 ? '' : 's'}.
-            </p>
-          </div>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={() => setShowMore((value) => !value)}
+        aria-expanded={showMore}
+        className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+      >
+        {showMore ? '− Hide additional options' : '+ More options'}
+      </button>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Textarea label="Next step / blocker" rows={2} error={errors.nextStep?.message} {...register('nextStep')} />
-        <Textarea
-          label="Verification note"
-          rows={2}
-          placeholder="Verified in staging"
-          error={errors.verificationNote?.message}
-          {...register('verificationNote')}
-        />
-      </div>
-
-      <Textarea
-        label="Code references"
-        rows={2}
-        placeholder={'src/components/Table.tsx:120-160\nsrc/api/client.ts'}
-        hint="One reference per line, e.g. file:line."
-        error={errors.codeReferencesText?.message}
-        {...register('codeReferencesText')}
-      />
-
-      <div className="space-y-1.5">
-        <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">Labels</span>
-        <Controller
-          control={control}
-          name="labelIds"
-          render={() => (
-            <LabelPicker
-              labels={labelOptions}
-              selected={selectedLabels}
-              disabled={pending}
-              onChange={(ids) => setValue('labelIds', ids, { shouldDirty: true })}
+      {showMore && (
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Select label="Status" placeholder="Use default" options={statusOptions} error={errors.statusId?.message} {...register('statusId')} />
+            <Select label="Type" placeholder="Use default" options={typeOptions} error={errors.typeId?.message} {...register('typeId')} />
+            <Select
+              label="Milestone"
+              placeholder="None"
+              options={milestoneOptions}
+              error={errors.milestoneId?.message}
+              {...register('milestoneId')}
             />
-          )}
-        />
-      </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <DateField control={control} name="startDate" label="Start date" error={errors.startDate?.message} />
+            {canSetProgress ? (
+              <Input
+                label="Progress %"
+                type="number"
+                min="0"
+                max="100"
+                hint={task?.progressMode === 'AUTO' ? 'Derived from subtasks' : undefined}
+                error={errors.progress?.message}
+                {...register('progress')}
+              />
+            ) : (
+              <div className="space-y-1.5">
+                <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">Progress</span>
+                <p className="pt-2 text-xs text-slate-500 dark:text-slate-400">
+                  Calculated from {task?.subtaskCount} subtask{task?.subtaskCount === 1 ? '' : 's'}.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Estimated hours"
+              type="number"
+              step="0.5"
+              min="0"
+              error={errors.estimatedHours?.message}
+              {...register('estimatedHours')}
+            />
+            <Input
+              label="Actual hours"
+              type="number"
+              step="0.5"
+              min="0"
+              error={errors.actualHours?.message}
+              {...register('actualHours')}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Textarea label="Next step / blocker" rows={2} error={errors.nextStep?.message} {...register('nextStep')} />
+            <Textarea
+              label="Verification note"
+              rows={2}
+              placeholder="Verified in staging"
+              error={errors.verificationNote?.message}
+              {...register('verificationNote')}
+            />
+          </div>
+
+          <Textarea
+            label="Code references"
+            rows={2}
+            placeholder={'src/components/Table.tsx:120-160\nsrc/api/client.ts'}
+            hint="One reference per line, e.g. file:line."
+            error={errors.codeReferencesText?.message}
+            {...register('codeReferencesText')}
+          />
+
+          <div className="space-y-1.5">
+            <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">Labels</span>
+            <Controller
+              control={control}
+              name="labelIds"
+              render={() => (
+                <LabelPicker
+                  labels={labelOptions}
+                  selected={selectedLabels}
+                  disabled={pending}
+                  onChange={(ids) => setValue('labelIds', ids, { shouldDirty: true })}
+                />
+              )}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="secondary" onClick={onCancel} disabled={pending}>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
@@ -26,6 +26,9 @@ export function ProjectsPage() {
   const [searchInput, setSearchInput] = useState(searchParams.get('q') ?? '');
   const [createOpen, setCreateOpen] = useState(false);
   const debouncedSearch = useDebounce(searchInput, 350);
+  // Tracks the q value we last wrote to the URL so we can tell our own
+  // updates apart from browser back/forward navigation.
+  const syncedQRef = useRef(searchParams.get('q') ?? '');
 
   const page = Number(searchParams.get('page') ?? '1') || 1;
   const statusKey = searchParams.get('status') ?? '';
@@ -53,9 +56,32 @@ export function ProjectsPage() {
   // Keep the URL in sync with the debounced search term (shareable views).
   useEffect(() => {
     const current = searchParams.get('q') ?? '';
-    if (current !== debouncedSearch) setParam('q', debouncedSearch || null);
+    if (current !== debouncedSearch) {
+      syncedQRef.current = debouncedSearch;
+      setParam('q', debouncedSearch || null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch]);
+
+  // Resync the input when the URL changes externally (back/forward, links).
+  useEffect(() => {
+    const urlQ = searchParams.get('q') ?? '';
+    if (urlQ !== syncedQRef.current) {
+      syncedQRef.current = urlQ;
+      setSearchInput(urlQ);
+    }
+  }, [searchParams]);
+
+  // Support "Create a new project" from the command palette (?new=1).
+  useEffect(() => {
+    if (canCreate && searchParams.get('new') === '1') {
+      setCreateOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, canCreate]);
 
   const items = projects.data?.data.projects ?? [];
   const meta = projects.data?.meta ?? {};

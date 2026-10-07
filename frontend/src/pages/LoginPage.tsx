@@ -17,7 +17,9 @@ export function LoginPage() {
   const location = useLocation();
   const [formError, setFormError] = useState<string | null>(null);
 
-  const from = (location.state as { from?: string } | null)?.from ?? '/dashboard';
+  const navState = location.state as { from?: string; reason?: string } | null;
+  const from = navState?.from ?? '/dashboard';
+  const expired = navState?.reason === 'expired';
 
   const {
     register,
@@ -48,6 +50,11 @@ export function LoginPage() {
   return (
     <AuthLayout title="Sign in" description="Use the account your administrator created for you.">
       <form onSubmit={onSubmit} noValidate className="space-y-4">
+        {expired && (
+          <Alert variant="warning" title="Session expired">
+            You were signed out after a period of inactivity. Sign in again to continue where you left off.
+          </Alert>
+        )}
         {formError && <Alert variant="error">{formError}</Alert>}
 
         <Input

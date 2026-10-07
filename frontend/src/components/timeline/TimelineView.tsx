@@ -7,6 +7,8 @@ import { BlockedBadge } from '../tasks/BlockedBadge';
 import type { TimelineData } from '../../features/timeline/queries';
 import type { Task } from '../../features/tasks/types';
 import { cn } from '../../lib/cn';
+import { readableTextColor } from '../../lib/color';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { formatDate } from '../../lib/format';
 import { addDays, differenceInCalendarDays, eachMonthOfInterval, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 
@@ -71,6 +73,7 @@ export function TimelineView({ data }: { data: TimelineData }) {
   const today = new Date();
   const todayPct = pct(today);
   const showToday = todayPct >= 0 && todayPct <= 100;
+  const isMobile = useMediaQuery('(max-width: 639px)');
 
   if (data.tasks.length === 0) {
     return <EmptyState title="Nothing to plot yet" description="Create tasks with start or due dates to see the timeline." />;
@@ -78,8 +81,37 @@ export function TimelineView({ data }: { data: TimelineData }) {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div className="min-w-[760px]">
+      {isMobile ? (
+        <ul className="space-y-2">
+        {scheduled.map((task) => (
+          <li key={task.id} className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+            <Link
+              to={`/tasks/${task.id}`}
+              className="block truncate text-sm text-slate-800 hover:text-indigo-600 dark:text-slate-100 dark:hover:text-indigo-400"
+            >
+              <span className="mr-1.5 font-mono text-[11px] text-slate-400">{task.displayKey}</span>
+              {task.title}
+            </Link>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {formatDate(task.startDate)} → {formatDate(task.dueDate)}
+              {task.assignee ? ` · ${task.assignee.displayName}` : ''}
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <span
+                  className="block h-full rounded-full"
+                  style={{ width: `${Math.max(0, Math.min(100, task.progress))}%`, backgroundColor: task.status.color }}
+                />
+              </span>
+              <span className="text-[11px] tabular-nums text-slate-500 dark:text-slate-400">{task.progress}%</span>
+              <BlockedBadge task={task} />
+            </div>
+          </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+          <div className="min-w-[760px]">
           <div className="flex border-b border-slate-200 dark:border-slate-800">
             <div className={cn(LEFT_COLUMN, 'px-3 py-2 text-[11px] font-medium tracking-wide text-slate-500 uppercase dark:text-slate-400')}>
               Task
@@ -164,9 +196,14 @@ export function TimelineView({ data }: { data: TimelineData }) {
                   )}
                   <Link
                     to={`/tasks/${task.id}`}
-                    style={{ left: `${left}%`, width: `${width}%`, backgroundColor: cancelled ? '#94a3b8' : task.status.color }}
+                    style={{
+                      left: `${left}%`,
+                      width: `${width}%`,
+                      backgroundColor: cancelled ? '#94a3b8' : task.status.color,
+                      color: readableTextColor(cancelled ? '#94a3b8' : task.status.color),
+                    }}
                     className={cn(
-                      'absolute top-3 flex h-6 items-center overflow-hidden rounded px-1.5 text-[10px] font-medium text-white shadow-sm',
+                      'absolute top-3 flex h-6 items-center overflow-hidden rounded px-1.5 text-[10px] font-medium shadow-sm',
                       (done || cancelled) && 'opacity-70',
                     )}
                     title={`${task.title}\n${formatDate(task.startDate)} → ${formatDate(task.dueDate)}\nStatus: ${task.status.name}`}
@@ -177,8 +214,9 @@ export function TimelineView({ data }: { data: TimelineData }) {
               </div>
             );
           })}
+          </div>
         </div>
-      </div>
+      )}
 
       {unscheduled.length > 0 && (
         <div className="rounded-xl border border-dashed border-slate-300 p-4 dark:border-slate-700">

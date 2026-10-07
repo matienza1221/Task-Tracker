@@ -39,8 +39,8 @@ export function ForgotPasswordPage() {
       {sent ? (
         <div className="space-y-4">
           <Alert variant="success" title="Check your inbox">
-            If an account exists for that address, a password reset link has been queued. In this environment outbound
-            email is not configured, so the link is available to administrators in the mail outbox.
+            If an account exists for that address, we have sent a password reset link. Remember to check your spam
+            folder.
           </Alert>
           <Link
             to="/login"

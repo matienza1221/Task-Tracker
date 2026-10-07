@@ -128,7 +128,7 @@ describe('CommentsSection', () => {
     await screen.findByText('No comments yet');
     const textarea = screen.getByLabelText('Add a comment');
     await user.type(textarea, 'Ping @Mar');
-    await user.click(await screen.findByRole('button', { name: /Marvin Reyes/ }));
+    await user.click(await screen.findByRole('option', { name: /Marvin Reyes/ }));
     await user.type(textarea, 'can you review?');
     await user.click(screen.getByRole('button', { name: 'Comment' }));
 

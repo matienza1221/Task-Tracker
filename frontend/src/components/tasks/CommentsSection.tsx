@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { Card, CardBody, CardHeader } from '../ui/Card';
@@ -69,6 +69,11 @@ export function CommentsSection({
   const caret = textareaRef.current?.selectionStart ?? body.length;
   const mention = findMentionQuery(body, caret);
   const suggestions = mention ? filterMentionSuggestions(memberOptions, mention.query, mentionedIds) : [];
+  const [mentionHighlight, setMentionHighlight] = useState(0);
+
+  useEffect(() => {
+    setMentionHighlight(0);
+  }, [mention?.query]);
 
   const onSelectMention = (user: { id: string; displayName: string }) => {
     if (!mention) return;
@@ -235,6 +240,18 @@ export function CommentsSection({
                 if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
                   event.preventDefault();
                   submit();
+                  return;
+                }
+                if (suggestions.length === 0) return;
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  setMentionHighlight((index) => Math.min(index + 1, suggestions.length - 1));
+                } else if (event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  setMentionHighlight((index) => Math.max(index - 1, 0));
+                } else if (event.key === 'Enter' || event.key === 'Tab') {
+                  event.preventDefault();
+                  onSelectMention(suggestions[mentionHighlight]);
                 }
               }}
             />
@@ -244,19 +261,22 @@ export function CommentsSection({
                 aria-label="Mention suggestions"
                 className="absolute z-20 mt-1 w-64 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
               >
-                {suggestions.map((suggestion) => (
-                  <li key={suggestion.id}>
-                    <button
-                      type="button"
-                      onClick={() => onSelectMention(suggestion)}
-                      className={cn(
-                        'flex w-full items-center gap-2 px-3 py-2 text-left text-sm',
-                        'hover:bg-indigo-50 dark:hover:bg-indigo-950/50',
-                      )}
-                    >
-                      <Avatar name={suggestion.displayName} size="sm" />
-                      {suggestion.displayName}
-                    </button>
+                {suggestions.map((suggestion, index) => (
+                  <li
+                    key={suggestion.id}
+                    role="option"
+                    aria-selected={index === mentionHighlight}
+                    onMouseEnter={() => setMentionHighlight(index)}
+                    onClick={() => onSelectMention(suggestion)}
+                    className={cn(
+                      'flex cursor-pointer items-center gap-2 px-3 py-2 text-sm',
+                      index === mentionHighlight
+                        ? 'bg-indigo-50 dark:bg-indigo-950/50'
+                        : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/50',
+                    )}
+                  >
+                    <Avatar name={suggestion.displayName} size="sm" />
+                    {suggestion.displayName}
                   </li>
                 ))}
               </ul>

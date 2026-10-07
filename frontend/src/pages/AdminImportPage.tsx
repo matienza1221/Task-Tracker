@@ -7,7 +7,9 @@ import { Card, CardBody, CardHeader } from '../components/ui/Card';
 import { Select } from '../components/ui/Select';
 import { EmptyState } from '../components/ui/States';
 import { UploadIcon } from '../components/ui/upload-icon';
+import { DownloadIcon } from '../components/ui/icons';
 import { useMembers, useProjects } from '../features/projects/queries';
+import { downloadImportTemplate } from '../features/imports/template';
 import { useCommitImport, useImportJobs, usePreviewImport, useUploadImport } from '../features/imports/queries';
 import {
   IMPORT_FIELDS,
@@ -46,6 +48,7 @@ export function AdminImportPage() {
   const [defaultAssigneeId, setDefaultAssigneeId] = useState('');
   const [preview, setPreview] = useState<ImportPreviewResult | null>(null);
   const [report, setReport] = useState<ImportCommitResult | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   const projects = useProjects({ pageSize: 100 });
   const members = useMembers(projectId, Boolean(projectId));
@@ -133,7 +136,7 @@ export function AdminImportPage() {
 
       <ol className="flex flex-wrap items-center gap-2 text-xs">
         {(['upload', 'map', 'preview', 'done'] as Step[]).map((item, index) => (
-          <li key={item} className="flex items-center gap-2">
+          <li key={item} className="flex items-center gap-2" aria-current={step === item ? 'step' : undefined}>
             <span
               className={cn(
                 'inline-flex h-6 w-6 items-center justify-center rounded-full font-semibold',
@@ -156,18 +159,43 @@ export function AdminImportPage() {
 
       {step === 'upload' && (
         <Card>
-          <CardHeader title="1. Upload a file" description="CSV, TSV or XLSX up to 10 MB and 5,000 rows." />
+          <CardHeader
+            title="1. Upload a file"
+            description="CSV, TSV or XLSX up to 10 MB and 5,000 rows."
+            actions={
+              <Button variant="secondary" size="sm" onClick={downloadImportTemplate}>
+                <DownloadIcon className="text-base" />
+                Download template
+              </Button>
+            }
+          />
           <CardBody className="space-y-3">
             <label
               htmlFor="import-file"
-              className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 px-6 py-10 text-center hover:border-indigo-400 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/40"
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDragging(false);
+                onUpload(event.dataTransfer.files?.[0]);
+              }}
+              className={cn(
+                'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 px-6 py-10 text-center hover:border-indigo-400 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/40',
+                'focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/40',
+                dragging && 'border-indigo-400 bg-indigo-50/60 dark:border-indigo-600 dark:bg-indigo-950/30',
+              )}
             >
               <UploadIcon className="text-2xl text-slate-400" />
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
                 {uploadImport.isPending ? 'Reading the file…' : 'Choose a CSV/XLSX file'}
               </span>
               <span className="text-xs text-slate-500 dark:text-slate-400">
-                Tip: in Google Sheets use File → Download → CSV so header names are preserved.
+                Drag and drop a file here, or click to browse. New to this? Download the template above, fill it in
+                Excel or Sheets, then upload it. In Google Sheets use File → Download → CSV so header names are
+                preserved.
               </span>
               <input
                 id="import-file"
@@ -177,6 +205,21 @@ export function AdminImportPage() {
                 onChange={(event) => onUpload(event.target.files?.[0])}
               />
             </label>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-300">
+              <p className="font-medium text-slate-700 dark:text-slate-200">Formatting tips</p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                <li>
+                  Dates: <span className="font-mono">YYYY-MM-DD</span> or <span className="font-mono">M/D/YYYY</span>.
+                </li>
+                <li>
+                  Reference link: separate multiple entries with <span className="font-mono">;</span>.
+                </li>
+                <li>Status and priority must match your project — leave blank to use the defaults.</li>
+                <li>Owner must be an existing project member's name or email.</li>
+                <li>Area creates a new label when it does not exist yet.</li>
+                <li>Replace or delete the rows marked [Example] before uploading.</li>
+              </ul>
+            </div>
             {uploadImport.isError && <Alert variant="error">{uploadImport.error.message}</Alert>}
           </CardBody>
         </Card>

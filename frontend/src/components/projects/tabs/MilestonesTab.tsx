@@ -153,7 +153,7 @@ export function MilestonesTab({ project }: { project: Project }) {
         <div>
           <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Milestones</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Group delivery checkpoints; tasks will attach to milestones in Phase 3.
+            Group delivery checkpoints and attach tasks to track progress.
           </p>
         </div>
         {canManage && <Button onClick={openCreate}>New milestone</Button>}

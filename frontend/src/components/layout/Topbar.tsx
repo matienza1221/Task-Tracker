@@ -11,10 +11,12 @@ import { ChevronDownIcon, LogOutIcon, MenuIcon, MoonIcon, SearchIcon, SettingsIc
 import { COMMAND_PALETTE_EVENT } from './CommandPalette';
 import { NotificationBell } from './NotificationBell';
 
+const THEME_ORDER = ['light', 'dark', 'system'] as const;
+
 function ThemeToggle() {
   const theme = useUiStore((state) => state.theme);
   const setTheme = useUiStore((state) => state.setTheme);
-  const next = theme === 'dark' ? 'light' : 'dark';
+  const next = THEME_ORDER[(THEME_ORDER.indexOf(theme) + 1) % THEME_ORDER.length];
   const label = `Switch to ${next} mode`;
 
   return (
@@ -36,6 +38,8 @@ function UserMenu() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -47,11 +51,29 @@ function UserMenu() {
     };
     document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
     return () => {
       document.removeEventListener('mousedown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [open]);
+
+  const onMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+    if (items.length === 0) return;
+    const index = items.indexOf(document.activeElement as HTMLElement);
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      items[(index + 1 + items.length) % items.length].focus();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      items[(index - 1 + items.length) % items.length].focus();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setOpen(false);
+      triggerRef.current?.focus();
+    }
+  };
 
   const user = me.data;
   if (!user) return null;
@@ -77,6 +99,7 @@ function UserMenu() {
   return (
     <div ref={containerRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-haspopup="menu"
@@ -97,8 +120,10 @@ function UserMenu() {
 
       {open && (
         <div
+          ref={menuRef}
           role="menu"
           aria-label="User menu"
+          onKeyDown={onMenuKeyDown}
           className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
         >
           <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
@@ -138,6 +163,8 @@ function UserMenu() {
   );
 }
 
+const IS_MAC = typeof navigator !== 'undefined' && /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent);
+
 export function Topbar({ title }: { title?: string }) {
   const collapsed = useUiStore((state) => state.sidebarCollapsed);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
@@ -173,7 +200,9 @@ export function Topbar({ title }: { title?: string }) {
         >
           <SearchIcon className="text-sm" />
           Search
-          <kbd className="rounded border border-slate-300 px-1 font-mono text-[10px] dark:border-slate-600">⌘K</kbd>
+          <kbd className="rounded border border-slate-300 px-1 font-mono text-[10px] dark:border-slate-600">
+            {IS_MAC ? '⌘K' : 'Ctrl K'}
+          </kbd>
         </button>
         <NotificationBell />
         <ThemeToggle />

@@ -118,6 +118,7 @@ export interface BoardFilters {
   label?: string[];
   milestone?: string[];
   scope?: 'all' | 'mine' | 'unassigned';
+  blocked?: boolean;
   includeCancelled?: boolean;
 }
 

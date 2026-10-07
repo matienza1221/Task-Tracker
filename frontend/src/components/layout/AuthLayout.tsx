@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 export function AuthLayout({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+  useDocumentTitle(title);
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 px-4 py-10 dark:bg-slate-950">
       <div className="w-full max-w-md">

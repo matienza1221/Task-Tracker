@@ -2,6 +2,7 @@ import type { ActivityAction, Prisma, Task, TaskStatus, User } from '@prisma/cli
 import { prisma } from '../../db/prisma';
 import { accessibleProjectWhere, assertProjectPermission, getProjectAccess, projectRoleHasPermission } from '../../lib/access';
 import { conflict, forbidden, notFound, validationError } from '../../lib/errors';
+import { optimisticWrite } from '../../lib/optimistic';
 import { recalculateProjectProgress, recalculateTaskProgress } from '../../lib/progress';
 import { parseDateOnly, startOfTodayUtc } from '../../lib/validation';
 import { recordActivity } from '../activity/service';
@@ -20,6 +21,8 @@ import { loadTaskForPermission } from '../../lib/resourceGuards';
 import { toDependencyRef, type DependencyRef } from '../../lib/dependencies';
 import { dependencySelect } from '../dependencies/service';
 import type { CreateTaskInput, TaskListQuery, UpdateTaskInput } from './schemas';
+
+const STALE_TASK_MESSAGE = 'This task was updated by someone else. Reload it and try again.';
 
 const SORTABLE: Record<string, Prisma.TaskOrderByWithRelationInput> = {
   key: { number: 'asc' },
@@ -531,10 +534,14 @@ export async function updateTask(user: User, taskId: string, input: UpdateTaskIn
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.task.update({
-      where: { id: task.id },
-      data: { ...data, version: { increment: 1 } },
-    });
+    await optimisticWrite(
+      () =>
+        tx.task.update({
+          where: { id: task.id, version: input.version },
+          data: { ...data, version: { increment: 1 } },
+        }),
+      STALE_TASK_MESSAGE,
+    );
     if (input.labelIds !== undefined) {
       await tx.taskLabel.deleteMany({ where: { taskId: task.id } });
       const unique = [...new Set(input.labelIds)];
@@ -631,14 +638,18 @@ export async function changeTaskStatus(user: User, taskId: string, statusId: str
     select: { name: true, category: true },
   });
 
-  await prisma.task.update({
-    where: { id: task.id },
-    data: {
-      statusId: nextStatus.id,
-      version: { increment: 1 },
-      ...statusSideEffects({ category: currentStatus.category, progress: task.progress }, nextStatus.category, hasChildren),
-    },
-  });
+  await optimisticWrite(
+    () =>
+      prisma.task.update({
+        where: { id: task.id, version },
+        data: {
+          statusId: nextStatus.id,
+          version: { increment: 1 },
+          ...statusSideEffects({ category: currentStatus.category, progress: task.progress }, nextStatus.category, hasChildren),
+        },
+      }),
+    STALE_TASK_MESSAGE,
+  );
 
   await recordActivity({
     projectId: task.projectId,
@@ -691,10 +702,10 @@ export async function assignTask(
     ? await prisma.user.findUniqueOrThrow({ where: { id: assigneeId }, select: { displayName: true } })
     : null;
 
-  await prisma.task.update({
-    where: { id: task.id },
-    data: { assigneeId, version: { increment: 1 } },
-  });
+  await optimisticWrite(
+    () => prisma.task.update({ where: { id: task.id, version }, data: { assigneeId, version: { increment: 1 } } }),
+    STALE_TASK_MESSAGE,
+  );
 
   await recordActivity({
     projectId: task.projectId,

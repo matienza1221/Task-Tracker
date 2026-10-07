@@ -35,8 +35,13 @@ function buildActions(user: AuthUser | undefined, navigate: (path: string) => vo
   const nextTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
   const actions: CommandAction[] = [
     { id: 'go-dashboard', label: 'Go to dashboard', hint: 'Navigation', keywords: ['home', 'overview'], run: () => navigate('/dashboard') },
-    { id: 'go-projects', label: 'Go to projects', hint: 'Navigation', keywords: ['list', 'create task'], run: () => navigate('/projects') },
+    { id: 'go-projects', label: 'Go to projects', hint: 'Navigation', keywords: ['list'], run: () => navigate('/projects') },
     { id: 'go-my-tasks', label: 'Go to my tasks', hint: 'Navigation', keywords: ['assigned', 'work'], run: () => navigate('/my-tasks') },
+    { id: 'go-calendar', label: 'Go to calendar', hint: 'Navigation', keywords: ['schedule', 'dates'], run: () => navigate('/calendar') },
+    { id: 'go-team', label: 'Go to team', hint: 'Navigation', keywords: ['people', 'members'], run: () => navigate('/team') },
+    { id: 'go-reports', label: 'Go to reports', hint: 'Navigation', keywords: ['analytics', 'charts'], run: () => navigate('/reports') },
+    { id: 'go-notifications', label: 'Go to notifications', hint: 'Navigation', keywords: ['inbox', 'alerts'], run: () => navigate('/notifications') },
+    { id: 'new-project', label: 'Create a new project', hint: 'Create', keywords: ['new', 'add', 'project'], run: () => navigate('/projects?new=1') },
     { id: 'go-settings', label: 'Go to settings', hint: 'Navigation', keywords: ['profile', 'password', 'theme'], run: () => navigate('/settings') },
     { id: 'toggle-theme', label: `Switch theme to ${nextTheme}`, hint: 'Appearance', keywords: ['dark', 'light', 'system'], run: () => setTheme(nextTheme) },
   ];
@@ -51,6 +56,12 @@ function buildActions(user: AuthUser | undefined, navigate: (path: string) => vo
       keywords: ['statuses', 'priorities', 'types'],
       run: () => navigate('/admin/vocabularies'),
     });
+  }
+  if (can(user, 'audit:view')) {
+    actions.push({ id: 'go-admin-audit', label: 'View audit log', hint: 'Administration', keywords: ['history', 'events'], run: () => navigate('/admin/audit') });
+  }
+  if (can(user, 'import:run')) {
+    actions.push({ id: 'go-admin-import', label: 'Import from spreadsheet', hint: 'Administration', keywords: ['csv', 'upload'], run: () => navigate('/admin/import') });
   }
   return actions;
 }

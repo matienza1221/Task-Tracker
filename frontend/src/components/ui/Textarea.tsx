@@ -5,10 +5,12 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
   label: string;
   error?: string;
   hint?: string;
+  /** Shows a required marker and sets aria-required (native validation stays off). */
+  required?: boolean;
 }
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
-  { label, error, hint, id, className, rows = 4, ...props },
+  { label, error, hint, id, className, rows = 4, required, ...props },
   ref,
 ) {
   const generatedId = useId();
@@ -19,13 +21,22 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
 
   return (
     <div className="space-y-1.5">
-      <label htmlFor={textareaId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-        {label}
-      </label>
+      {label && (
+        <label
+          htmlFor={textareaId}
+          className={cn(
+            'block text-sm font-medium text-slate-700 dark:text-slate-300',
+            required && "after:ml-0.5 after:text-red-500 after:content-['*']",
+          )}
+        >
+          {label}
+        </label>
+      )}
       <textarea
         id={textareaId}
         ref={ref}
         rows={rows}
+        aria-required={required || undefined}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         className={cn(

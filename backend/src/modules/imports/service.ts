@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto';
-import type { ImportJob, Prisma, User } from '@prisma/client';
+import { createHash, randomUUID } from 'node:crypto';
+import type { ImportJob, ImportRowStatus, Prisma, User } from '@prisma/client';
 import { prisma } from '../../db/prisma';
 import { assertProjectPermission } from '../../lib/access';
 import { conflict, notFound, validationError } from '../../lib/errors';
@@ -319,21 +319,40 @@ async function loadJobRows(jobId: string): Promise<ImportRowWithData[]> {
   });
 }
 
-async function persistRows(jobId: string, rows: ValidatedRow[]): Promise<void> {
-  await prisma.$transaction([
-    prisma.importRow.deleteMany({ where: { jobId } }),
-    prisma.importRow.createMany({
-      data: rows.map((row) => ({
-        jobId,
-        rowNumber: row.rowNumber,
-        raw: row.raw as Prisma.InputJsonValue,
-        normalized: (row.normalized ?? undefined) as Prisma.InputJsonValue | undefined,
-        errors: row.errors.length > 0 ? (row.errors as unknown as Prisma.InputJsonValue) : undefined,
-        rowHash: row.rowHash,
-        status: row.status,
-      })),
-    }),
-  ]);
+interface PersistableRow {
+  rowNumber: number;
+  status: ImportRowStatus;
+  errors: RowError[];
+  normalized: Record<string, unknown> | null;
+  raw: Record<string, string>;
+  rowHash: string;
+  taskId?: string | null;
+}
+
+/**
+ * Replaces the stored rows of a job in two statements. Preview uses it to
+ * refresh the validation snapshot and commit uses it to attach the created task
+ * ids, so neither path issues one query per row.
+ */
+async function persistRows(
+  client: Prisma.TransactionClient | typeof prisma,
+  jobId: string,
+  rows: PersistableRow[],
+): Promise<void> {
+  await client.importRow.deleteMany({ where: { jobId } });
+  if (rows.length === 0) return;
+  await client.importRow.createMany({
+    data: rows.map((row) => ({
+      jobId,
+      rowNumber: row.rowNumber,
+      raw: row.raw as Prisma.InputJsonValue,
+      normalized: (row.normalized ?? undefined) as Prisma.InputJsonValue | undefined,
+      errors: row.errors.length > 0 ? (row.errors as unknown as Prisma.InputJsonValue) : undefined,
+      rowHash: row.rowHash,
+      status: row.status,
+      taskId: row.taskId ?? null,
+    })),
+  });
 }
 
 function jobSummary(job: ImportJob): ImportSummary {
@@ -361,16 +380,19 @@ export async function createImportJob(user: User, file: { buffer: Buffer; origin
     },
   });
 
-  await persistRows(
-    job.id,
-    sheet.rows.map((row) => ({
-      rowNumber: row.rowNumber,
-      status: 'VALID' as const,
-      errors: [],
-      normalized: null,
-      raw: Object.fromEntries(sheet.headers.map((header, column) => [header, row.values[column] ?? ''])),
-      rowHash: hashRow(row.values),
-    })),
+  await prisma.$transaction((tx) =>
+    persistRows(
+      tx,
+      job.id,
+      sheet.rows.map((row) => ({
+        rowNumber: row.rowNumber,
+        status: 'VALID' as const,
+        errors: [],
+        normalized: null,
+        raw: Object.fromEntries(sheet.headers.map((header, column) => [header, row.values[column] ?? ''])),
+        rowHash: hashRow(row.values),
+      })),
+    ),
   );
 
   await recordAudit({
@@ -401,7 +423,7 @@ export async function previewImport(user: User, jobId: string, input: PreviewInp
   const rows = await loadJobRows(jobId);
   const { rows: validated, labelsToCreate } = await validateRows(job, rows, input);
 
-  await persistRows(jobId, validated);
+  await prisma.$transaction((tx) => persistRows(tx, jobId, validated));
   const summary = summarize(validated, jobSummary(job).headers ?? [], {
     labelsToCreate,
     warnings: validated
@@ -441,20 +463,31 @@ export async function commitImport(user: User, jobId: string, input: PreviewInpu
   const { rows: validated, labelsToCreate } = await validateRows(job, rows, input);
   const validRows = validated.filter((row) => row.status === 'VALID');
 
-  const report = await prisma.$transaction(
+  const result = await prisma.$transaction(
     async (tx) => {
+      // Claim the job atomically: the conditional update matches no row once a
+      // concurrent commit has set COMMITTED, so tasks are only created once.
+      const claimed = await tx.importJob.updateMany({
+        where: { id: jobId, status: { not: 'COMMITTED' } },
+        data: { status: 'COMMITTED', committedAt: new Date() },
+      });
+      if (claimed.count === 0) return { alreadyCommitted: true as const, summary: null as ImportSummary | null };
+
       // Create any missing labels referenced by the Area column.
       const existingLabels = await tx.label.findMany({
         where: { deletedAt: null, OR: [{ projectId: project.id }, { projectId: null }], name: { in: labelsToCreate } },
         select: { id: true, name: true },
       });
       const labelIdByName = new Map(existingLabels.map((label) => [label.name.trim().toLowerCase(), label.id]));
+      const missingLabels = labelsToCreate.filter((name) => !labelIdByName.has(name.toLowerCase()));
       let labelsCreated = 0;
-      for (const name of labelsToCreate) {
-        if (labelIdByName.has(name.toLowerCase())) continue;
-        const label = await tx.label.create({ data: { projectId: project.id, name, createdById: user.id } });
-        labelIdByName.set(name.toLowerCase(), label.id);
-        labelsCreated += 1;
+      if (missingLabels.length > 0) {
+        const created = await tx.label.createManyAndReturn({
+          data: missingLabels.map((name) => ({ projectId: project.id, name, createdById: user.id })),
+          select: { id: true, name: true },
+        });
+        for (const label of created) labelIdByName.set(label.name.trim().toLowerCase(), label.id);
+        labelsCreated = created.length;
       }
 
       const [fallbackStatusId, fallbackPriorityId, fallbackTypeId] = await Promise.all([
@@ -471,52 +504,62 @@ export async function commitImport(user: User, jobId: string, input: PreviewInpu
       const firstNumber = sequence.taskSequence - validRows.length + 1;
 
       const taskKeys: string[] = [];
-      let index = 0;
-      for (const row of validRows) {
+      const taskIdByRow = new Map<number, string>();
+      const taskRows = validRows.map((row, index) => {
         const data = row.normalized as Record<string, unknown>;
         const number = firstNumber + index;
         const key = `${sequence.code}-${number}`;
-        const task = await tx.task.create({
-          data: {
-            projectId: project.id,
-            number,
-            key,
-            title: String(data.title),
-            description: (data.description as string | null) ?? null,
-            statusId: (data.statusId as string | null) ?? fallbackStatusId,
-            priorityId: (data.priorityId as string | null) ?? fallbackPriorityId,
-            typeId: (data.typeId as string | null) ?? fallbackTypeId,
-            assigneeId: (data.assigneeId as string | null) ?? null,
-            reporterId: user.id,
-            milestoneId: (data.milestoneId as string | null) ?? null,
-            startDate: data.startDate ? parseDateOnly(String(data.startDate)) : null,
-            dueDate: data.dueDate ? parseDateOnly(String(data.dueDate)) : null,
-            completedAt: data.completedAt ? new Date(String(data.completedAt)) : null,
-            estimatedHours: (data.estimatedHours as number | null) ?? null,
-            actualHours: Number(data.actualHours ?? 0),
-            progress: Number(data.progress ?? 0),
-            nextStep: (data.nextStep as string | null) ?? null,
-            verificationNote: (data.verificationNote as string | null) ?? null,
-            codeReferences: (data.codeReferences as string[]) ?? [],
-            sortOrder: index,
-          },
-          select: { id: true },
-        });
-
-        const area = data.areaLabel as string | null;
-        const labelId = area ? labelIdByName.get(area.toLowerCase()) : undefined;
-        if (labelId) {
-          await tx.taskLabel.create({ data: { taskId: task.id, labelId } });
-        }
-
-        await tx.importRow.updateMany({
-          where: { jobId, rowNumber: row.rowNumber },
-          data: { status: 'IMPORTED', taskId: task.id },
-        });
-
+        const id = randomUUID();
         taskKeys.push(key);
-        index += 1;
+        taskIdByRow.set(row.rowNumber, id);
+        return {
+          id,
+          projectId: project.id,
+          number,
+          key,
+          title: String(data.title),
+          description: (data.description as string | null) ?? null,
+          statusId: (data.statusId as string | null) ?? fallbackStatusId,
+          priorityId: (data.priorityId as string | null) ?? fallbackPriorityId,
+          typeId: (data.typeId as string | null) ?? fallbackTypeId,
+          assigneeId: (data.assigneeId as string | null) ?? null,
+          reporterId: user.id,
+          milestoneId: (data.milestoneId as string | null) ?? null,
+          startDate: data.startDate ? parseDateOnly(String(data.startDate)) : null,
+          dueDate: data.dueDate ? parseDateOnly(String(data.dueDate)) : null,
+          completedAt: data.completedAt ? new Date(String(data.completedAt)) : null,
+          estimatedHours: (data.estimatedHours as number | null) ?? null,
+          actualHours: Number(data.actualHours ?? 0),
+          progress: Number(data.progress ?? 0),
+          nextStep: (data.nextStep as string | null) ?? null,
+          verificationNote: (data.verificationNote as string | null) ?? null,
+          codeReferences: (data.codeReferences as string[]) ?? [],
+          sortOrder: index,
+        };
+      });
+
+      if (taskRows.length > 0) {
+        await tx.task.createMany({ data: taskRows });
+
+        const labelLinks = taskRows.flatMap((task, index) => {
+          const area = validRows[index].normalized?.areaLabel as string | null | undefined;
+          const labelId = area ? labelIdByName.get(area.toLowerCase()) : undefined;
+          return labelId ? [{ taskId: task.id, labelId }] : [];
+        });
+        if (labelLinks.length > 0) await tx.taskLabel.createMany({ data: labelLinks });
       }
+
+      // Rewrite the job's rows in two statements, marking imported rows and
+      // linking each to its created task.
+      await persistRows(
+        tx,
+        jobId,
+        validated.map((row) => ({
+          ...row,
+          status: row.status === 'VALID' ? ('IMPORTED' as const) : row.status,
+          taskId: taskIdByRow.get(row.rowNumber) ?? null,
+        })),
+      );
 
       const summary: ImportSummary = summarize(validated, jobSummary(job).headers ?? [], {
         imported: validRows.length,
@@ -526,15 +569,22 @@ export async function commitImport(user: User, jobId: string, input: PreviewInpu
         labelsToCreate,
       });
 
-      return summary;
+      await tx.importJob.update({
+        where: { id: jobId },
+        data: { summary: summary as unknown as Prisma.InputJsonValue },
+      });
+
+      return { alreadyCommitted: false as const, summary };
     },
     { timeout: 120_000 },
   );
 
-  await prisma.importJob.update({
-    where: { id: jobId },
-    data: { status: 'COMMITTED', committedAt: new Date(), summary: report as unknown as Prisma.InputJsonValue },
-  });
+  if (result.alreadyCommitted) {
+    const current = await prisma.importJob.findUniqueOrThrow({ where: { id: jobId } });
+    return { summary: jobSummary(current), alreadyCommitted: true };
+  }
+
+  const report = result.summary;
 
   await recordActivity({
     projectId: project.id,

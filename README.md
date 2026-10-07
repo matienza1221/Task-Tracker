@@ -81,20 +81,20 @@ docker compose up --build
 
 | Service | URL |
 |---|---|
-| Web app | https://localhost:5180 |
-| API health | https://localhost:5180/api/health (also http://localhost:4000/api/health) |
+| Web app | http://localhost:5180 |
+| API health | http://localhost:5180/api/health (also http://localhost:4000/api/health) |
 | PostgreSQL | localhost:5432 |
 
 Sign in with the `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from your `.env`. The seeded admin must change its password on first sign-in.
 
-The browser will warn about the self-signed development certificate — that is expected; accept the exception and continue.
+The Docker dev stack serves plain HTTP. If you run Vite outside Docker with `certs/dev.crt` present it serves HTTPS instead and the browser will warn about the self-signed certificate — accept the exception and continue.
 
 Stop the stack with `docker compose down` (add `-v` to also delete the database volume).
 
 ### Environment notes
 
 - `SEED_ADMIN_PASSWORD` must satisfy the password policy (12+ characters, 3 of lowercase/uppercase/digits/symbols, and must not contain the email local part or display name). The seed script fails fast with a clear message if it does not.
-- `COOKIE_SECURE=true` in development because the dev stack runs over HTTPS. Set it to `false` only if you deliberately run the SPA over plain HTTP.
+- `COOKIE_SECURE=false` in development because the dev stack runs over plain HTTP. Set it to `true` if you run the SPA over HTTPS (e.g. Vite with local certificates).
 - All secrets live in `.env` (gitignored). Nothing sensitive is passed to the frontend: only `VITE_*` values are bundled, and those contain no secrets.
 
 ---

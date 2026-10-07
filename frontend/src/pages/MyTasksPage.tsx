@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody, CardHeader } from '../components/ui/Card';
 import { Pagination } from '../components/ui/Pagination';
@@ -16,6 +16,7 @@ export function MyTasksPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchInput, setSearchInput] = useState(searchParams.get('q') ?? '');
   const debouncedSearch = useDebounce(searchInput, 350);
+  const syncedQRef = useRef(searchParams.get('q') ?? '');
 
   const filters: TaskFilters = useMemo(() => {
     const status = searchParams.get('status');
@@ -25,6 +26,7 @@ export function MyTasksPage() {
       status: status ? [status] : undefined,
       priority: priority ? [priority] : undefined,
       overdue: searchParams.get('overdue') === 'true' || undefined,
+      blocked: searchParams.get('blocked') === 'true' || undefined,
       includeCompleted: searchParams.get('completed') === 'true' ? true : undefined,
       sort: searchParams.get('sort') ?? 'dueDate',
       page: Number(searchParams.get('page') ?? '1') || 1,
@@ -44,9 +46,21 @@ export function MyTasksPage() {
 
   useEffect(() => {
     const current = searchParams.get('q') ?? '';
-    if (current !== debouncedSearch) setParam('q', debouncedSearch || null);
+    if (current !== debouncedSearch) {
+      syncedQRef.current = debouncedSearch;
+      setParam('q', debouncedSearch || null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch]);
+
+  // Resync the input when the URL changes externally (back/forward, links).
+  useEffect(() => {
+    const urlQ = searchParams.get('q') ?? '';
+    if (urlQ !== syncedQRef.current) {
+      syncedQRef.current = urlQ;
+      setSearchInput(urlQ);
+    }
+  }, [searchParams]);
 
   const updateFilters = (partial: Partial<TaskFilters>) => {
     const next = new URLSearchParams(searchParams);
@@ -57,6 +71,7 @@ export function MyTasksPage() {
     if ('status' in partial) setList('status', partial.status);
     if ('priority' in partial) setList('priority', partial.priority);
     if ('overdue' in partial) partial.overdue ? next.set('overdue', 'true') : next.delete('overdue');
+    if ('blocked' in partial) partial.blocked ? next.set('blocked', 'true') : next.delete('blocked');
     if ('includeCompleted' in partial) partial.includeCompleted ? next.set('completed', 'true') : next.delete('completed');
     if ('sort' in partial && partial.sort) next.set('sort', partial.sort);
     next.delete('page');

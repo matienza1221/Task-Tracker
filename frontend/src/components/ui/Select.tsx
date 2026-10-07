@@ -14,10 +14,12 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   hint?: string;
   options: SelectOption[];
   placeholder?: string;
+  /** Shows a required marker and sets aria-required (native validation stays off). */
+  required?: boolean;
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { label, error, hint, id, className, options, placeholder, ...props },
+  { label, error, hint, id, className, options, placeholder, required, ...props },
   ref,
 ) {
   const generatedId = useId();
@@ -28,13 +30,22 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
 
   return (
     <div className="space-y-1.5">
-      <label htmlFor={selectId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-        {label}
-      </label>
+      {label && (
+        <label
+          htmlFor={selectId}
+          className={cn(
+            'block text-sm font-medium text-slate-700 dark:text-slate-300',
+            required && "after:ml-0.5 after:text-red-500 after:content-['*']",
+          )}
+        >
+          {label}
+        </label>
+      )}
       <div className="relative">
         <select
           id={selectId}
           ref={ref}
+          aria-required={required || undefined}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
           className={cn(

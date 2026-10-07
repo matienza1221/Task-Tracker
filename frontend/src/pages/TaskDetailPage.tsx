@@ -87,6 +87,23 @@ export function TaskDetailPage() {
     setActivityPage(1);
   }, [task?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Warn before a full page unload while inline drafts have unsaved edits.
+  const draftsDirty = Boolean(
+    task &&
+      (descriptionDraft !== (task.description ?? '') ||
+        notesDraft.nextStep !== (task.nextStep ?? '') ||
+        notesDraft.verificationNote !== (task.verificationNote ?? '')),
+  );
+  useEffect(() => {
+    if (!draftsDirty) return undefined;
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [draftsDirty]);
+
   const handleConflict = (error: Error) => {
     if (error instanceof ApiError && error.status === 409) {
       toast.error('Task changed elsewhere', 'Reloading the latest version.');
@@ -218,14 +235,10 @@ export function TaskDetailPage() {
             <CardHeader
               title="Description"
               actions={
-                canUpdate && descriptionDirty ? (
-                  <Button
-                    size="sm"
-                    loading={updateTask.isPending}
-                    onClick={() => save({ description: descriptionDraft }, 'Description saved')}
-                  >
-                    Save
-                  </Button>
+                canUpdate ? (
+                  <span className="text-xs text-slate-400 dark:text-slate-500">
+                    {updateTask.isPending ? 'Saving…' : descriptionDirty ? 'Unsaved changes' : 'Saved'}
+                  </span>
                 ) : undefined
               }
             />
@@ -238,6 +251,10 @@ export function TaskDetailPage() {
                   value={descriptionDraft}
                   placeholder="What needs to happen?"
                   onChange={(event) => setDescriptionDraft(event.target.value)}
+                  onBlur={() => {
+                    const next = descriptionDraft.trim();
+                    if (next !== (task.description ?? '')) save({ description: next }, 'Description saved');
+                  }}
                 />
               ) : (
                 <p className="text-sm whitespace-pre-line text-slate-600 dark:text-slate-300">
@@ -301,7 +318,7 @@ export function TaskDetailPage() {
           />
         </div>
 
-        <div className="space-y-5">
+        <div className="order-first space-y-5 lg:order-none">
           <Card>
             <CardHeader title="Details" />
             <CardBody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -441,12 +458,10 @@ export function TaskDetailPage() {
                       min="0"
                       className="w-24"
                       defaultValue={task.estimatedHours ?? ''}
-                      onBlur={(event) =>
-                        save(
-                          { estimatedHours: event.target.value === '' ? null : Number(event.target.value) },
-                          'Estimate updated',
-                        )
-                      }
+                      onBlur={(event) => {
+                        const next = event.target.value === '' ? null : Number(event.target.value);
+                        if (next !== (task.estimatedHours ?? null)) save({ estimatedHours: next }, 'Estimate updated');
+                      }}
                     />
                     <Input
                       label=""
@@ -456,9 +471,10 @@ export function TaskDetailPage() {
                       min="0"
                       className="w-24"
                       defaultValue={task.actualHours}
-                      onBlur={(event) =>
-                        save({ actualHours: event.target.value === '' ? 0 : Number(event.target.value) }, 'Hours updated')
-                      }
+                      onBlur={(event) => {
+                        const next = event.target.value === '' ? 0 : Number(event.target.value);
+                        if (next !== task.actualHours) save({ actualHours: next }, 'Hours updated');
+                      }}
                     />
                   </span>
                 ) : (
@@ -518,22 +534,10 @@ export function TaskDetailPage() {
             <CardHeader
               title="Notes"
               actions={
-                canUpdate && notesDirty ? (
-                  <Button
-                    size="sm"
-                    loading={updateTask.isPending}
-                    onClick={() =>
-                      save(
-                        {
-                          nextStep: notesDraft.nextStep.trim() || undefined,
-                          verificationNote: notesDraft.verificationNote.trim() || undefined,
-                        },
-                        'Notes saved',
-                      )
-                    }
-                  >
-                    Save
-                  </Button>
+                canUpdate ? (
+                  <span className="text-xs text-slate-400 dark:text-slate-500">
+                    {updateTask.isPending ? 'Saving…' : notesDirty ? 'Unsaved changes' : 'Saved'}
+                  </span>
                 ) : undefined
               }
             />
@@ -544,6 +548,16 @@ export function TaskDetailPage() {
                 value={notesDraft.nextStep}
                 disabled={!canUpdate}
                 onChange={(event) => setNotesDraft((draft) => ({ ...draft, nextStep: event.target.value }))}
+                onBlur={() => {
+                  if (!notesDirty) return;
+                  save(
+                    {
+                      nextStep: notesDraft.nextStep.trim() || undefined,
+                      verificationNote: notesDraft.verificationNote.trim() || undefined,
+                    },
+                    'Notes saved',
+                  );
+                }}
               />
               <Textarea
                 label="Verification note"
@@ -551,6 +565,16 @@ export function TaskDetailPage() {
                 value={notesDraft.verificationNote}
                 disabled={!canUpdate}
                 onChange={(event) => setNotesDraft((draft) => ({ ...draft, verificationNote: event.target.value }))}
+                onBlur={() => {
+                  if (!notesDirty) return;
+                  save(
+                    {
+                      nextStep: notesDraft.nextStep.trim() || undefined,
+                      verificationNote: notesDraft.verificationNote.trim() || undefined,
+                    },
+                    'Notes saved',
+                  );
+                }}
               />
             </CardBody>
           </Card>

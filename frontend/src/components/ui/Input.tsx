@@ -6,6 +6,8 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
   hint?: string;
+  /** Shows a required marker and sets aria-required (native validation stays off). */
+  required?: boolean;
 }
 
 const inputBase =
@@ -17,7 +19,7 @@ const inputNormal = 'border-slate-300 dark:border-slate-700';
 const inputInvalid = 'border-red-500 focus:border-red-500 focus:ring-red-500/40';
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, error, hint, id, className, type = 'text', ...props },
+  { label, error, hint, id, className, type = 'text', required, ...props },
   ref,
 ) {
   const generatedId = useId();
@@ -30,14 +32,23 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 
   return (
     <div className="space-y-1.5">
-      <label htmlFor={inputId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-        {label}
-      </label>
+      {label && (
+        <label
+          htmlFor={inputId}
+          className={cn(
+            'block text-sm font-medium text-slate-700 dark:text-slate-300',
+            required && "after:ml-0.5 after:text-red-500 after:content-['*']",
+          )}
+        >
+          {label}
+        </label>
+      )}
       <div className="relative">
         <input
           id={inputId}
           ref={ref}
           type={isPassword && revealed ? 'text' : type}
+          aria-required={required || undefined}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
           className={cn(inputBase, error ? inputInvalid : inputNormal, isPassword && 'pr-10', className)}

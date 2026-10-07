@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -144,6 +144,7 @@ describe('DependenciesSection', () => {
     renderSection();
 
     await user.click(screen.getAllByRole('button', { name: 'Remove' })[0]);
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove' }));
     expect(removeMutate).toHaveBeenCalledWith({ blockedTaskId: 't1', dependsOnTaskId: 'b1' }, expect.anything());
   });
 
@@ -152,6 +153,7 @@ describe('DependenciesSection', () => {
     renderSection();
 
     await user.click(screen.getAllByRole('button', { name: 'Remove' })[1]);
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove' }));
     expect(removeMutate).toHaveBeenCalledWith({ blockedTaskId: 'c1', dependsOnTaskId: 't1' }, expect.anything());
   });
 

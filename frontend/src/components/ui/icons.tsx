@@ -247,3 +247,11 @@ export const RocketIcon = (props: IconProps) => (
     <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
   </Svg>
 );
+
+export const DownloadIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="m7 10 5 5 5-5" />
+    <path d="M12 15V3" />
+  </Svg>
+);

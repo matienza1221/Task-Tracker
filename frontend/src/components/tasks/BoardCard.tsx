@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Avatar } from '../ui/Avatar';
 import { ProgressBar } from '../ui/ProgressBar';
 import { TaskPriorityBadge, TaskStatusBadge, TaskTypeBadge } from './TaskBadges';
@@ -10,7 +11,19 @@ import { CalendarIcon, CheckSquareIcon } from '../ui/icons';
 import { Link } from 'react-router-dom';
 
 /** Card used inside Kanban columns (and as the drag overlay). */
-export function BoardCard({ task, overlay = false }: { task: Task; overlay?: boolean }) {
+export function BoardCard({
+  task,
+  overlay = false,
+  dragHandle,
+  moveControl,
+}: {
+  task: Task;
+  overlay?: boolean;
+  /** Drag activator button (keyboard + pointer), rendered by the sortable wrapper. */
+  dragHandle?: ReactNode;
+  /** Non-drag "move to column" control, so the board is usable without dragging. */
+  moveControl?: ReactNode;
+}) {
   return (
     <article
       className={cn(
@@ -28,6 +41,7 @@ export function BoardCard({ task, overlay = false }: { task: Task; overlay?: boo
         </Link>
         <span className="flex items-center gap-1">
           <TaskTypeBadge type={task.type} />
+          {dragHandle}
         </span>
       </div>
 
@@ -68,6 +82,8 @@ export function BoardCard({ task, overlay = false }: { task: Task; overlay?: boo
           </span>
         )}
       </div>
+
+      {moveControl}
 
       {!overlay && (
         <span className="sr-only">

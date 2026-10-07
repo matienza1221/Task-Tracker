@@ -139,6 +139,7 @@ describe('TaskForm', () => {
     mockedCreateTask.mockResolvedValue({ task: CREATED_TASK });
 
     await user.type(screen.getByLabelText('Title'), 'Convert portal');
+    await user.click(screen.getByRole('button', { name: '+ More options' }));
     await user.type(screen.getByLabelText('Estimated hours'), '12.5');
     await user.click(screen.getByRole('button', { name: 'Frontend' }));
     await user.type(screen.getByLabelText('Code references'), 'src/App.tsx:10-20{enter}src/api/client.ts');
@@ -159,6 +160,7 @@ describe('TaskForm', () => {
     renderForm();
 
     await user.type(screen.getByLabelText('Title'), 'Scheduling test');
+    await user.click(screen.getByRole('button', { name: '+ More options' }));
     await pickDay(user, 'Start date', 15);
     await pickDay(user, 'Due date', 10);
     await user.click(screen.getByRole('button', { name: 'Create task' }));

@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  addDays,
   addMonths,
   eachDayOfInterval,
   endOfDay,
@@ -71,16 +72,28 @@ export function DatePicker({
   const [open, setOpen] = useState(false);
   const selected = useMemo(() => parseValue(value), [value]);
   const [viewMonth, setViewMonth] = useState<Date>(() => selected ?? new Date());
+  const [focusedDate, setFocusedDate] = useState<Date>(() => selected ?? new Date());
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const dayRefs = useRef(new Map<string, HTMLButtonElement>());
 
   const minDate = useMemo(() => parseValue(min), [min]);
   const maxDate = useMemo(() => parseValue(max), [max]);
 
   useEffect(() => {
-    if (open) setViewMonth(selected ?? new Date());
+    if (open) {
+      setViewMonth(selected ?? new Date());
+      setFocusedDate(selected ?? new Date());
+    }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Move focus onto the active day when the popover opens or the roving focus
+  // changes, so keyboard users land inside the calendar.
+  useEffect(() => {
+    if (!open) return;
+    dayRefs.current.get(format(focusedDate, 'yyyy-MM-dd'))?.focus();
+  }, [open, focusedDate, viewMonth]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -136,6 +149,34 @@ export function DatePicker({
   const select = (day: Date) => {
     onChange(format(day, 'yyyy-MM-dd'));
     setOpen(false);
+  };
+
+  const moveFocus = (next: Date) => {
+    setFocusedDate(next);
+    if (!isSameMonth(next, viewMonth)) setViewMonth(startOfMonth(next));
+  };
+
+  const onGridKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const deltas: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+    if (event.key in deltas) {
+      event.preventDefault();
+      moveFocus(addDays(focusedDate, deltas[event.key]));
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      moveFocus(startOfWeek(focusedDate, { weekStartsOn: 1 }));
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      moveFocus(endOfWeek(focusedDate, { weekStartsOn: 1 }));
+    } else if (event.key === 'PageUp') {
+      event.preventDefault();
+      moveFocus(addMonths(focusedDate, -1));
+    } else if (event.key === 'PageDown') {
+      event.preventDefault();
+      moveFocus(addMonths(focusedDate, 1));
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (!isOutOfRange(focusedDate)) select(focusedDate);
+    }
   };
 
   return (
@@ -231,7 +272,7 @@ export function DatePicker({
               </button>
             </div>
 
-            <div className="grid grid-cols-7 gap-0.5">
+            <div role="group" aria-label="Calendar days" onKeyDown={onGridKeyDown} className="grid grid-cols-7 gap-0.5">
               {WEEKDAYS.map((day) => (
                 <div
                   key={day}
@@ -243,13 +284,19 @@ export function DatePicker({
               {days.map((day) => {
                 const outOfRange = isOutOfRange(day);
                 const isSelected = selected ? isSameDay(day, selected) : false;
+                const key = format(day, 'yyyy-MM-dd');
                 return (
                   <button
-                    key={format(day, 'yyyy-MM-dd')}
+                    key={key}
+                    ref={(node) => {
+                      if (node) dayRefs.current.set(key, node);
+                      else dayRefs.current.delete(key);
+                    }}
                     type="button"
                     disabled={outOfRange}
+                    tabIndex={isSameDay(day, focusedDate) ? 0 : -1}
                     aria-label={format(day, 'PPP')}
-                    aria-selected={isSelected}
+                    aria-current={isToday(day) ? 'date' : undefined}
                     onClick={() => select(day)}
                     className={cn(
                       'flex h-8 w-8 items-center justify-center rounded-full text-xs transition-colors',

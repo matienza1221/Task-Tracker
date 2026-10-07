@@ -4,6 +4,7 @@ import { Alert } from '../ui/Alert';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Card, CardBody, CardHeader } from '../ui/Card';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { Select } from '../ui/Select';
 import { Spinner } from '../ui/Spinner';
 import { useAddDependency, useDependencies, useRemoveDependency } from '../../features/dependencies/queries';
@@ -66,6 +67,11 @@ export function DependenciesSection({
   const removeDependency = useRemoveDependency(task.id);
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState('');
+  const [pendingRemove, setPendingRemove] = useState<{
+    blockedTaskId: string;
+    dependsOnTaskId: string;
+    label: string;
+  } | null>(null);
 
   // Candidate tasks come from the project list, excluding this task and any
   // dependency that already exists (the server rejects both anyway).
@@ -139,7 +145,9 @@ export function DependenciesSection({
             dependency={dependency}
             canManage={canManage}
             removing={removeDependency.isPending}
-            onRemove={() => onRemove(task.id, dependency.id)}
+            onRemove={() =>
+              setPendingRemove({ blockedTaskId: task.id, dependsOnTaskId: dependency.id, label: dependency.title })
+            }
           />
         ))}
       </ul>
@@ -154,7 +162,9 @@ export function DependenciesSection({
                 dependency={dependency}
                 canManage={canManage}
                 removing={removeDependency.isPending}
-                onRemove={() => onRemove(dependency.id, task.id)}
+                onRemove={() =>
+                  setPendingRemove({ blockedTaskId: dependency.id, dependsOnTaskId: task.id, label: dependency.title })
+                }
               />
             ))}
           </ul>
@@ -202,6 +212,23 @@ export function DependenciesSection({
           </p>
         </CardBody>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingRemove)}
+        title="Remove dependency"
+        description={
+          pendingRemove
+            ? `Remove the dependency on "${pendingRemove.label}"? This does not change either task's status.`
+            : ''
+        }
+        confirmLabel="Remove"
+        loading={removeDependency.isPending}
+        onConfirm={() => {
+          if (pendingRemove) onRemove(pendingRemove.blockedTaskId, pendingRemove.dependsOnTaskId);
+          setPendingRemove(null);
+        }}
+        onClose={() => setPendingRemove(null)}
+      />
     </Card>
   );
 }

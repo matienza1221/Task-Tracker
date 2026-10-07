@@ -7,7 +7,7 @@ import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { resetPasswordRequest } from '../features/auth/api';
-import { resetPasswordFormSchema, type ResetPasswordFormValues } from '../features/auth/schemas';
+import { PASSWORD_HINT, resetPasswordFormSchema, type ResetPasswordFormValues } from '../features/auth/schemas';
 import { ApiError } from '../lib/api/errors';
 import { toast } from '../stores/toastStore';
 
@@ -70,7 +70,7 @@ export function ResetPasswordPage() {
             label="New password"
             type="password"
             autoComplete="new-password"
-            hint="At least 12 characters, mixing letter case, digits and symbols."
+            hint={PASSWORD_HINT}
             error={errors.newPassword?.message}
             {...register('newPassword')}
           />

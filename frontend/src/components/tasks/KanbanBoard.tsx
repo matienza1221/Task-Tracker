@@ -3,7 +3,8 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   closestCorners,
   useDroppable,
   useSensor,
@@ -23,29 +24,66 @@ import { asApiError } from '../../lib/api/errors';
 import { cn } from '../../lib/cn';
 import { toast } from '../../stores/toastStore';
 import { PlusIcon } from '../ui/plus-icon';
+import { MenuIcon } from '../ui/icons';
 
-const ANNOUNCEMENTS = {
-  onDragStart: ({ active }: { active: { id: string | number } }) => `Picked up task ${active.id}.`,
-  onDragOver: ({ over }: { over: { id: string | number } | null }) => (over ? `Task is over ${over.id}.` : 'Task is no longer over a column.'),
-  onDragEnd: ({ over }: { over: { id: string | number } | null }) => (over ? `Task dropped on ${over.id}.` : 'Task dropped.'),
-  onDragCancel: () => 'Move cancelled.',
-};
+interface StatusOption {
+  id: string;
+  name: string;
+}
 
-function SortableCard({ task, canMove }: { task: Task; canMove: boolean }) {
+function SortableCard({
+  task,
+  canMove,
+  statuses,
+  onMove,
+}: {
+  task: Task;
+  canMove: boolean;
+  statuses: StatusOption[];
+  onMove: (task: Task, statusId: string) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     disabled: !canMove,
   });
 
+  const dragHandle = canMove ? (
+    <button
+      type="button"
+      {...attributes}
+      {...listeners}
+      aria-label={`Drag ${task.displayKey} to another column`}
+      className="cursor-grab rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-700 dark:hover:text-slate-200"
+    >
+      <MenuIcon className="text-sm" />
+    </button>
+  ) : undefined;
+
+  const moveControl = canMove ? (
+    <label className="mt-2.5 flex items-center gap-2 border-t border-slate-100 pt-2 text-[11px] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+      <span className="shrink-0">Move to</span>
+      <select
+        value={task.status.id}
+        onChange={(event) => onMove(task, event.target.value)}
+        aria-label={`Move ${task.displayKey} to another column`}
+        className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-1.5 py-1 text-[11px] text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
+      >
+        {statuses.map((status) => (
+          <option key={status.id} value={status.id}>
+            {status.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  ) : undefined;
+
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn('touch-none', isDragging && 'opacity-40', canMove && 'cursor-grab active:cursor-grabbing')}
-      {...attributes}
-      {...listeners}
+      className={cn('touch-manipulation', isDragging && 'opacity-40')}
     >
-      <BoardCard task={task} />
+      <BoardCard task={task} dragHandle={dragHandle} moveControl={moveControl} />
     </div>
   );
 }
@@ -53,10 +91,14 @@ function SortableCard({ task, canMove }: { task: Task; canMove: boolean }) {
 function Column({
   column,
   canMove,
+  statuses,
+  onMove,
   onCreateTask,
 }: {
   column: BoardColumn;
   canMove: boolean;
+  statuses: StatusOption[];
+  onMove: (task: Task, statusId: string) => void;
   onCreateTask?: (statusId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `column:${column.status.id}` });
@@ -77,7 +119,7 @@ function Column({
         </span>
         <span className="flex shrink-0 items-center gap-1">
           <Badge variant="neutral">{column.tasks.length}</Badge>
-          {onCreateTask && canMove && (
+          {onCreateTask && (
             <Button
               variant="ghost"
               size="sm"
@@ -93,7 +135,7 @@ function Column({
       <SortableContext items={column.tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
         <div className="flex max-h-[65vh] min-h-[80px] flex-1 flex-col gap-2 overflow-y-auto px-2 pb-3 scrollbar-thin">
           {column.tasks.map((task) => (
-            <SortableCard key={task.id} task={task} canMove={canMove} />
+            <SortableCard key={task.id} task={task} canMove={canMove} statuses={statuses} onMove={onMove} />
           ))}
           {column.tasks.length === 0 && (
             <p className="px-2 py-6 text-center text-xs text-slate-400 dark:text-slate-500">
@@ -114,18 +156,32 @@ export interface KanbanBoardProps {
 }
 
 /**
- * Kanban board with pointer and keyboard drag & drop. The move is applied
- * optimistically and rolled back if the server rejects it (including 409
- * conflicts when someone else edited the task in the meantime).
+ * Kanban board with mouse, touch and keyboard drag & drop plus a non-drag
+ * "Move to" control on every card. Moves are applied optimistically and rolled
+ * back if the server rejects them (including 409 conflicts).
  */
 export function KanbanBoard({ projectId, columns, canMove, onCreateTask }: KanbanBoardProps) {
   const move = useMoveTask(projectId);
   const [activeTask, setActiveTask] = useState<Task | undefined>(undefined);
 
+  const statuses: StatusOption[] = columns.map((column) => ({ id: column.status.id, name: column.status.name }));
+
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
     useSensor(KeyboardSensor),
   );
+
+  const handleMoveError = (error: Error) => {
+    const apiError = asApiError(error);
+    if (apiError.status === 409) {
+      toast.error('Task changed elsewhere', 'The board was refreshed with the latest version.');
+    } else if (apiError.status === 403 || apiError.status === 404) {
+      toast.error('Move not allowed', 'You do not have permission to move this task.');
+    } else {
+      toast.error('Could not move task', apiError.message);
+    }
+  };
 
   const onDragStart = (event: DragStartEvent) => {
     setActiveTask(findTask(columns, String(event.active.id)));
@@ -149,34 +205,60 @@ export function KanbanBoard({ projectId, columns, canMove, onCreateTask }: Kanba
 
     move.mutate(
       { taskId: task.id, statusId: target.statusId, targetIndex: target.targetIndex, version: task.version },
-      {
-        onSuccess: (result) => toast.success(`Task ${result.task.displayKey} moved to ${result.task.status.name}`),
-        onError: (error) => {
-          const apiError = asApiError(error);
-          if (apiError.status === 409) {
-            toast.error('Task changed elsewhere', 'The board was refreshed with the latest version.');
-          } else if (apiError.status === 403 || apiError.status === 404) {
-            toast.error('Move not allowed', 'You do not have permission to move this task.');
-          } else {
-            toast.error('Could not move task', apiError.message);
-          }
-        },
-      },
+      { onError: handleMoveError },
     );
+  };
+
+  const moveToColumn = (task: Task, statusId: string) => {
+    if (task.status.id === statusId) return;
+    const target = columns.find((column) => column.status.id === statusId);
+    if (!target) return;
+    move.mutate(
+      { taskId: task.id, statusId, targetIndex: target.tasks.length, version: task.version },
+      { onError: handleMoveError },
+    );
+  };
+
+  const taskLabel = (id: string | number) => {
+    const task = findTask(columns, String(id));
+    return task ? `${task.displayKey} ${task.title}` : String(id);
+  };
+  const overLabel = (id: string | number) => {
+    const value = String(id);
+    if (value.startsWith('column:')) {
+      const statusId = value.slice('column:'.length);
+      return columns.find((column) => column.status.id === statusId)?.status.name ?? 'a column';
+    }
+    return taskLabel(value);
+  };
+  const announcements = {
+    onDragStart: ({ active }: { active: { id: string | number } }) => `Picked up ${taskLabel(active.id)}.`,
+    onDragOver: ({ over }: { over: { id: string | number } | null }) =>
+      over ? `Over ${overLabel(over.id)}.` : 'Not over a column.',
+    onDragEnd: ({ over }: { over: { id: string | number } | null }) =>
+      over ? `Dropped on ${overLabel(over.id)}.` : 'Move cancelled.',
+    onDragCancel: () => 'Move cancelled.',
   };
 
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCorners}
-      accessibility={{ announcements: ANNOUNCEMENTS }}
+      accessibility={{ announcements }}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragCancel={() => setActiveTask(undefined)}
     >
       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
         {columns.map((column) => (
-          <Column key={column.status.id} column={column} canMove={canMove} onCreateTask={onCreateTask} />
+          <Column
+            key={column.status.id}
+            column={column}
+            canMove={canMove}
+            statuses={statuses}
+            onMove={moveToColumn}
+            onCreateTask={onCreateTask}
+          />
         ))}
       </div>
       <DragOverlay>{activeTask ? <BoardCard task={activeTask} overlay /> : null}</DragOverlay>

@@ -15,6 +15,10 @@ export interface TaskFiltersBarProps {
   milestones?: { id: string; name: string }[];
   showAssignee?: boolean;
   showScopeToggle?: boolean;
+  showStatus?: boolean;
+  showSort?: boolean;
+  showOverdue?: boolean;
+  showCompleted?: boolean;
 }
 
 /** URL-synced filter controls shared by the project task list and My Tasks. */
@@ -28,6 +32,10 @@ export function TaskFiltersBar({
   milestones = [],
   showAssignee = true,
   showScopeToggle = true,
+  showStatus = true,
+  showSort = true,
+  showOverdue = true,
+  showCompleted = true,
 }: TaskFiltersBarProps) {
   const vocab = useVocabularies();
   const statusKey = filters.status?.[0] ?? '';
@@ -56,15 +64,17 @@ export function TaskFiltersBar({
           onChange={(event) => onSearchChange(event.target.value)}
         />
       </div>
-      <div className="w-40">
-        <Select
-          label="Status"
-          placeholder="All statuses"
-          options={(vocab.data?.taskStatuses ?? []).map((status) => ({ value: status.key, label: status.name }))}
-          value={statusKey}
-          onChange={(event) => onChange({ status: event.target.value ? [event.target.value] : undefined })}
-        />
-      </div>
+      {showStatus && (
+        <div className="w-40">
+          <Select
+            label="Status"
+            placeholder="All statuses"
+            options={(vocab.data?.taskStatuses ?? []).map((status) => ({ value: status.key, label: status.name }))}
+            value={statusKey}
+            onChange={(event) => onChange({ status: event.target.value ? [event.target.value] : undefined })}
+          />
+        </div>
+      )}
       <div className="w-40">
         <Select
           label="Priority"
@@ -96,24 +106,28 @@ export function TaskFiltersBar({
           />
         </div>
       )}
-      <div className="w-44">
-        <Select
-          label="Sort"
-          options={TASK_SORT_OPTIONS}
-          value={filters.sort ?? '-updatedAt'}
-          onChange={(event) => onChange({ sort: event.target.value })}
-        />
-      </div>
-      <div className="flex flex-wrap items-center gap-4 pb-2.5">
-        <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-          <input
-            type="checkbox"
-            checked={Boolean(filters.overdue)}
-            onChange={(event) => onChange({ overdue: event.target.checked || undefined })}
-            className="h-4 w-4 rounded border-slate-300 accent-indigo-600 dark:border-slate-600"
+      {showSort && (
+        <div className="w-44">
+          <Select
+            label="Sort"
+            options={TASK_SORT_OPTIONS}
+            value={filters.sort ?? '-updatedAt'}
+            onChange={(event) => onChange({ sort: event.target.value })}
           />
-          Overdue only
-        </label>
+        </div>
+      )}
+      <div className="flex basis-full flex-wrap items-center gap-4 pb-2.5">
+        {showOverdue && (
+          <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+            <input
+              type="checkbox"
+              checked={Boolean(filters.overdue)}
+              onChange={(event) => onChange({ overdue: event.target.checked || undefined })}
+              className="h-4 w-4 rounded border-slate-300 accent-indigo-600 dark:border-slate-600"
+            />
+            Overdue only
+          </label>
+        )}
         <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
           <input
             type="checkbox"
@@ -133,15 +147,18 @@ export function TaskFiltersBar({
             />
             My tasks only
           </label>
-        )}        <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-          <input
-            type="checkbox"
-            checked={filters.includeCompleted === true}
-            onChange={(event) => onChange({ includeCompleted: event.target.checked || undefined })}
-            className="h-4 w-4 rounded border-slate-300 accent-indigo-600 dark:border-slate-600"
-          />
-          Include done
-        </label>
+        )}
+        {showCompleted && (
+          <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+            <input
+              type="checkbox"
+              checked={filters.includeCompleted === true}
+              onChange={(event) => onChange({ includeCompleted: event.target.checked || undefined })}
+              className="h-4 w-4 rounded border-slate-300 accent-indigo-600 dark:border-slate-600"
+            />
+            Include done
+          </label>
+        )}
       </div>
       {hasFilters && (
         <Button variant="ghost" className="mb-0.5" onClick={onReset}>

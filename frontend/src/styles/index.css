@@ -7,6 +7,10 @@
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
     'Apple Color Emoji', 'Segoe UI Emoji';
+
+  /* Nudge the lightest text token darker so secondary text meets WCAG AA on
+   * white (slate-400 default is ~2.8:1). Dark mode re-declares its own scale. */
+  --color-slate-400: #64748b;
 }
 
 @layer base {
@@ -47,6 +51,19 @@
   }
 }
 
+/* Respect the user's reduced-motion preference for spinners, fades and the
+ * theme cross-fade. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /*
  * Old-Discord-inspired dark palette.
  *
@@ -61,7 +78,7 @@
   --color-slate-800: #36393f;
   --color-slate-700: #40444b;
   --color-slate-600: #4f545c;
-  --color-slate-500: #72767d;
+  --color-slate-500: #a8adb3;
   --color-slate-400: #b9bbbe;
   --color-slate-300: #dcddde;
   --color-slate-200: #e3e5e8;

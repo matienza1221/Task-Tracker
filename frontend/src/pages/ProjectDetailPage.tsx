@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Alert } from '../components/ui/Alert';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -28,6 +28,7 @@ type TabId = (typeof TAB_IDS)[number];
 export function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const me = useMe();
   const project = useProject(projectId);
   const archiveProject = useArchiveProject(projectId ?? '');
@@ -35,9 +36,15 @@ export function ProjectDetailPage() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
 
   const rawTab = searchParams.get('tab') as TabId | null;
   const tab: TabId = rawTab && TAB_IDS.includes(rawTab) ? rawTab : 'overview';
+
+  // Mount the tasks panel lazily on first visit, then keep it mounted so its
+  // view, selection and saved-view state survive tab switches.
+  const tasksVisited = useRef(false);
+  if (tab === 'tasks') tasksVisited.current = true;
 
   if (project.isLoading) {
     return (
@@ -133,12 +140,16 @@ export function ProjectDetailPage() {
             <Button
               variant="secondary"
               loading={archiveProject.isPending}
-              onClick={() =>
-                archiveProject.mutate(!data.isArchived, {
-                  onSuccess: () => toast.success(data.isArchived ? 'Project restored' : 'Project archived'),
-                  onError: (error) => toast.error('Could not update archive state', error.message),
-                })
-              }
+              onClick={() => {
+                if (data.isArchived) {
+                  archiveProject.mutate(false, {
+                    onSuccess: () => toast.success('Project restored'),
+                    onError: (error) => toast.error('Could not restore project', error.message),
+                  });
+                } else {
+                  setArchiveOpen(true);
+                }
+              }}
             >
               {data.isArchived ? 'Unarchive' : 'Archive'}
             </Button>
@@ -165,7 +176,7 @@ export function ProjectDetailPage() {
           const params = new URLSearchParams(searchParams);
           if (next === 'overview') params.delete('tab');
           else params.set('tab', next);
-          setSearchParams(params, { replace: true });
+          setSearchParams(params);
         }}
       />
 
@@ -175,9 +186,11 @@ export function ProjectDetailPage() {
           <ActivityTab project={data} limit={5} />
         </div>
       </TabPanel>
-      <TabPanel id="tasks" value={tab}>
-        <TasksTab project={data} />
-      </TabPanel>
+      {tasksVisited.current && (
+        <TabPanel id="tasks" value={tab} keepMounted>
+          <TasksTab project={data} />
+        </TabPanel>
+      )}
       <TabPanel id="members" value={tab}>
         <MembersTab project={data} />
       </TabPanel>
@@ -202,9 +215,31 @@ export function ProjectDetailPage() {
       </Modal>
 
       <ConfirmDialog
+        open={archiveOpen}
+        title="Archive project"
+        description={`Archive ${data.code} — ${data.name}? It will be hidden from the default project list but stays readable, and you can unarchive it later.`}
+        confirmLabel="Archive project"
+        variant="primary"
+        loading={archiveProject.isPending}
+        onConfirm={() =>
+          archiveProject.mutate(true, {
+            onSuccess: () => {
+              toast.success('Project archived');
+              setArchiveOpen(false);
+            },
+            onError: (error) => {
+              toast.error('Could not archive project', error.message);
+              setArchiveOpen(false);
+            },
+          })
+        }
+        onClose={() => setArchiveOpen(false)}
+      />
+
+      <ConfirmDialog
         open={deleteOpen}
         title="Delete project"
-        description={`Delete ${data.code} — ${data.name}? The project is archived and hidden; an administrator can purge it permanently later.`}
+        description={`Delete ${data.code} — ${data.name}? It will be removed from all lists. An administrator can permanently purge it later.`}
         confirmLabel="Delete project"
         loading={deleteProject.isPending}
         onConfirm={() =>
@@ -213,7 +248,7 @@ export function ProjectDetailPage() {
             {
               onSuccess: () => {
                 toast.success('Project deleted');
-                window.location.assign('/projects');
+                navigate('/projects', { replace: true });
               },
               onError: (error) => {
                 toast.error('Could not delete project', error.message);

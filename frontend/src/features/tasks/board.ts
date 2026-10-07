@@ -91,6 +91,7 @@ export function filtersToSearchParams(filters: TaskFilters): URLSearchParams {
   setList('milestone', filters.milestone);
   set('type', filters.type?.[0]);
   if (filters.overdue) params.set('overdue', 'true');
+  if (filters.blocked) params.set('blocked', 'true');
   if (filters.scope === 'mine') params.set('mine', 'true');
   if (filters.includeCompleted) params.set('completed', 'true');
   set('dueFrom', filters.dueFrom);
@@ -114,6 +115,7 @@ export function searchParamsToFilters(params: URLSearchParams): TaskFilters {
     milestone: list('milestone'),
     type: list('type'),
     overdue: params.get('overdue') === 'true' || undefined,
+    blocked: params.get('blocked') === 'true' || undefined,
     scope: params.get('mine') === 'true' ? 'mine' : undefined,
     includeCompleted: params.get('completed') === 'true' ? true : undefined,
     dueFrom: params.get('dueFrom') ?? undefined,

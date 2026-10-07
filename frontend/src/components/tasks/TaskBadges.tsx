@@ -14,11 +14,11 @@ function Chip({ color, label, title }: { color: string; label: string; title?: s
 }
 
 export function TaskStatusBadge({ status }: { status: TaskStatusRef }) {
-  return <Chip color={status.color} label={status.name} title={`Workflow category: ${status.category}`} />;
+  return <Chip color={status.color} label={status.name} />;
 }
 
 export function TaskPriorityBadge({ priority }: { priority: TaskPriorityRef }) {
-  return <Chip color={priority.color} label={priority.name} title={`Weight ${priority.weight}`} />;
+  return <Chip color={priority.color} label={priority.name} />;
 }
 
 export function TaskTypeBadge({ type }: { type: TaskTypeRef }) {

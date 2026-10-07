@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '../ui/Button';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { useSavedViewMutations, useSavedViews } from '../../features/projects/queries';
@@ -21,6 +22,7 @@ export function SavedViewsBar({ projectId, currentFilters, activeViewId, onApply
   const [saveOpen, setSaveOpen] = useState(false);
   const [name, setName] = useState('');
   const [isDefault, setIsDefault] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
 
   const items = views.data?.savedViews ?? [];
 
@@ -71,12 +73,7 @@ export function SavedViewsBar({ projectId, currentFilters, activeViewId, onApply
           <button
             type="button"
             aria-label={`Delete saved view ${view.name}`}
-            onClick={() =>
-              remove.mutate(view.id, {
-                onSuccess: () => toast.success('View deleted', view.name),
-                onError: (error) => toast.error('Could not delete view', error.message),
-              })
-            }
+            onClick={() => setPendingDelete({ id: view.id, name: view.name })}
             className="rounded-full px-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-100"
           >
             ×
@@ -118,6 +115,25 @@ export function SavedViewsBar({ projectId, currentFilters, activeViewId, onApply
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete saved view"
+        description={pendingDelete ? `Delete the saved view "${pendingDelete.name}"? This cannot be undone.` : ''}
+        confirmLabel="Delete view"
+        loading={remove.isPending}
+        onConfirm={() => {
+          if (pendingDelete) {
+            const target = pendingDelete;
+            remove.mutate(target.id, {
+              onSuccess: () => toast.success('View deleted', target.name),
+              onError: (error) => toast.error('Could not delete view', error.message),
+            });
+          }
+          setPendingDelete(null);
+        }}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

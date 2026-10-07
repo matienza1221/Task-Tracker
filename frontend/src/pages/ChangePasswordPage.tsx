@@ -6,7 +6,7 @@ import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useChangePassword, useMe } from '../features/auth/queries';
-import { changePasswordFormSchema, type ChangePasswordFormValues } from '../features/auth/schemas';
+import { PASSWORD_HINT, changePasswordFormSchema, type ChangePasswordFormValues } from '../features/auth/schemas';
 import { toast } from '../stores/toastStore';
 import { ApiError } from '../lib/api/errors';
 
@@ -77,7 +77,7 @@ export function ChangePasswordPage() {
           label="New password"
           type="password"
           autoComplete="new-password"
-          hint="At least 12 characters, mixing letter case, digits and symbols."
+          hint={PASSWORD_HINT}
           error={errors.newPassword?.message}
           {...register('newPassword')}
         />

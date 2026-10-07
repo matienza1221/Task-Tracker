@@ -9,12 +9,15 @@ export default defineConfig(({ mode }) => {
   const proxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:4000';
 
   // Development HTTPS with the OpenSSL certificates from scripts/generate-certs.sh.
-  // Falls back to HTTP when the certificates have not been generated yet.
+  // Enabled automatically when the certificates exist; set VITE_DEV_HTTPS=false
+  // to force plain HTTP (the Docker dev stack does this).
   const certsDir = path.resolve(process.cwd(), env.CERTS_DIR || '../certs');
   const keyPath = path.join(certsDir, 'dev.key');
   const certPath = path.join(certsDir, 'dev.crt');
+  const hasCerts = fs.existsSync(keyPath) && fs.existsSync(certPath);
+  const httpsEnabled = env.VITE_DEV_HTTPS === undefined ? hasCerts : env.VITE_DEV_HTTPS !== 'false';
   const https =
-    fs.existsSync(keyPath) && fs.existsSync(certPath)
+    httpsEnabled && hasCerts
       ? { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) }
       : undefined;
 

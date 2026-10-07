@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import type { ComponentType, SVGProps } from 'react';
 import { cn } from '../../lib/cn';
@@ -103,8 +104,48 @@ export function Sidebar() {
   const me = useMe();
   const notifications = useRecentNotifications();
   const unreadCount = Number(notifications.data?.meta.unreadCount ?? 0);
+  const mobilePanelRef = useRef<HTMLDivElement>(null);
 
   const closeMobile = () => setMobileNavOpen(false);
+
+  // Mobile drawer behaves like a modal: Escape closes, focus is trapped and
+  // the page behind is locked from scrolling.
+  useEffect(() => {
+    if (!mobileNavOpen) return undefined;
+    const panel = mobilePanelRef.current;
+    const focusable = () =>
+      Array.from(
+        panel?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+    focusable()[0]?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileNavOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusable();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileNavOpen, setMobileNavOpen]);
   const primaryNav = PRIMARY_NAV.map((item) =>
     item.to === '/notifications' ? { ...item, badge: unreadCount } : item,
   );
@@ -158,12 +199,6 @@ export function Sidebar() {
           <NavEntry key={item.to} item={item} collapsed={collapsed} onNavigate={closeMobile} />
         ))}
       </nav>
-
-      {!collapsed && (
-        <p className="px-2 text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
-          All eight phases live: tasks, board, collaboration, dependencies, scheduling, analytics, audit and spreadsheet import.
-        </p>
-      )}
     </div>
   );
 
@@ -186,7 +221,13 @@ export function Sidebar() {
             role="presentation"
             aria-hidden="true"
           />
-          <div className="absolute inset-y-0 left-0 w-72 max-w-[85%] border-r border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
+          <div
+            ref={mobilePanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation"
+            className="absolute inset-y-0 left-0 w-72 max-w-[85%] border-r border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900"
+          >
             {content}
           </div>
         </div>

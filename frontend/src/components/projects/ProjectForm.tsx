@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '../ui/Button';
 import { DateField } from '../ui/DateField';
 import { Input } from '../ui/Input';
+import { useModalDirty } from '../ui/Modal';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
 import { UserPicker } from '../ui/UserPicker';
@@ -45,7 +46,7 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
     handleSubmit,
     control,
     setError,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<ProjectFormValues>({
     resolver: zodResolver(projectFormSchema),
     defaultValues: {
@@ -59,6 +60,8 @@ export function ProjectForm({ project, onSuccess, onCancel }: ProjectFormProps) 
       managerId: project?.manager?.id ?? '',
     },
   });
+
+  useModalDirty(isDirty);
 
   const statusOptions = (vocab.data?.projectStatuses ?? []).map((status) => ({
     value: status.id,

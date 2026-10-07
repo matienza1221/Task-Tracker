@@ -30,6 +30,8 @@ export function AdminUsersPage() {
   const [tempPassword, setTempPassword] = useState<{ password: string; user: string } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<UserSummary | null>(null);
   const [pendingReset, setPendingReset] = useState<UserSummary | null>(null);
+  const [pendingRole, setPendingRole] = useState<{ user: UserSummary; globalRole: GlobalRole } | null>(null);
+  const [pendingDeactivate, setPendingDeactivate] = useState<UserSummary | null>(null);
 
   const debouncedSearch = useDebounce(searchInput, 350);
   const role = (searchParams.get('role') ?? '') as GlobalRole | '';
@@ -171,13 +173,7 @@ export function AdminUsersPage() {
                           disabled={isSelf || changeRole.isPending}
                           onChange={(event) => {
                             const globalRole = event.target.value as GlobalRole;
-                            changeRole.mutate(
-                              { userId: user.id, globalRole },
-                              {
-                                onSuccess: () => toast.success('Role updated', `${user.displayName} is now ${GLOBAL_ROLE_LABELS[globalRole]}.`),
-                                onError: (error) => toast.error('Could not change role', error.message),
-                              },
-                            );
+                            if (globalRole !== user.globalRole) setPendingRole({ user, globalRole });
                           }}
                         />
                       </td>
@@ -200,15 +196,7 @@ export function AdminUsersPage() {
                             variant="ghost"
                             size="sm"
                             disabled={!user.isActive || isSelf}
-                            onClick={() =>
-                              updateUser.mutate(
-                                { userId: user.id, isActive: !user.isActive },
-                                {
-                                  onSuccess: () => toast.success(user.isActive ? 'User deactivated' : 'User activated'),
-                                  onError: (error) => toast.error('Could not update user', error.message),
-                                },
-                              )
-                            }
+                            onClick={() => setPendingDeactivate(user)}
                           >
                             {user.isActive ? 'Deactivate' : 'Activate'}
                           </Button>
@@ -245,8 +233,8 @@ export function AdminUsersPage() {
       <UserFormModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreated={(password) => {
-          if (password) setTempPassword({ password, user: 'the new user' });
+        onCreated={(password, displayName) => {
+          if (password) setTempPassword({ password, user: displayName });
         }}
       />
 
@@ -313,6 +301,60 @@ export function AdminUsersPage() {
           );
         }}
         onClose={() => setPendingDelete(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingRole)}
+        title="Change global role"
+        description={
+          pendingRole
+            ? `Change ${pendingRole.user.displayName}'s role to ${GLOBAL_ROLE_LABELS[pendingRole.globalRole]}? This changes what they can access across all projects.`
+            : ''
+        }
+        confirmLabel="Change role"
+        variant="primary"
+        loading={changeRole.isPending}
+        onConfirm={() => {
+          if (!pendingRole) return;
+          const { user, globalRole } = pendingRole;
+          changeRole.mutate(
+            { userId: user.id, globalRole },
+            {
+              onSuccess: () => toast.success('Role updated', `${user.displayName} is now ${GLOBAL_ROLE_LABELS[globalRole]}.`),
+              onError: (error) => toast.error('Could not change role', error.message),
+            },
+          );
+          setPendingRole(null);
+        }}
+        onClose={() => setPendingRole(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingDeactivate)}
+        title={pendingDeactivate?.isActive ? 'Deactivate user' : 'Activate user'}
+        description={
+          pendingDeactivate
+            ? pendingDeactivate.isActive
+              ? `Deactivate ${pendingDeactivate.displayName}? They will be signed out and unable to sign in until reactivated.`
+              : `Reactivate ${pendingDeactivate.displayName}? They will be able to sign in again.`
+            : ''
+        }
+        confirmLabel={pendingDeactivate?.isActive ? 'Deactivate' : 'Activate'}
+        variant={pendingDeactivate?.isActive ? 'danger' : 'primary'}
+        loading={updateUser.isPending}
+        onConfirm={() => {
+          if (!pendingDeactivate) return;
+          const target = pendingDeactivate;
+          updateUser.mutate(
+            { userId: target.id, isActive: !target.isActive },
+            {
+              onSuccess: () => toast.success(target.isActive ? 'User deactivated' : 'User activated'),
+              onError: (error) => toast.error('Could not update user', error.message),
+            },
+          );
+          setPendingDeactivate(null);
+        }}
+        onClose={() => setPendingDeactivate(null)}
       />
     </div>
   );
