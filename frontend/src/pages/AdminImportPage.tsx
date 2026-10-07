@@ -205,8 +205,7 @@ export function AdminImportPage() {
                 onChange={(event) => onUpload(event.target.files?.[0])}
               />
             </label>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-300">
-              <p className="font-medium text-slate-700 dark:text-slate-200">Formatting tips</p>
+            <Alert variant="warning" title="Formatting tips">
               <ul className="mt-1 list-disc space-y-0.5 pl-4">
                 <li>
                   Dates: <span className="font-mono">YYYY-MM-DD</span> or <span className="font-mono">M/D/YYYY</span>.
@@ -219,7 +218,7 @@ export function AdminImportPage() {
                 <li>Area creates a new label when it does not exist yet.</li>
                 <li>Replace or delete the rows marked [Example] before uploading.</li>
               </ul>
-            </div>
+            </Alert>
             {uploadImport.isError && <Alert variant="error">{uploadImport.error.message}</Alert>}
           </CardBody>
         </Card>

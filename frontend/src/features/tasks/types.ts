@@ -92,6 +92,7 @@ export interface TaskFilters {
   assignee?: string[];
   label?: string[];
   milestone?: string[];
+  projectId?: string;
   scope?: 'all' | 'mine' | 'unassigned';
   subtasks?: 'top' | 'all' | 'only';
   overdue?: boolean;

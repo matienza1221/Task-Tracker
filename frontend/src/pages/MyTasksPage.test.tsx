@@ -19,6 +19,21 @@ vi.mock('../features/tasks/api', () => ({
   fetchTaskActivity: vi.fn(),
 }));
 
+vi.mock('../features/projects/queries', () => ({
+  useProjects: () => ({
+    data: {
+      data: {
+        projects: [
+          { id: 'p1', code: 'WEBAPP', name: 'Web App' },
+          { id: 'p2', code: 'MOBILE', name: 'Mobile App' },
+        ],
+      },
+      meta: { total: 2 },
+    },
+    isLoading: false,
+  }),
+}));
+
 vi.mock('../features/meta/queries', () => ({
   useVocabularies: () => ({
     data: {
@@ -76,11 +91,11 @@ function makeTask(overrides: Partial<Task> = {}): Task {
   };
 }
 
-function renderPage() {
+function renderPage(initialEntry = '/my-tasks') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/my-tasks']}>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <MyTasksPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -114,6 +129,34 @@ describe('MyTasksPage', () => {
     renderPage();
 
     expect(await screen.findByText('Nothing assigned to you')).toBeInTheDocument();
+  });
+
+  it('renders a tab per project and filters the request when one is selected', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText('Fix login redirect');
+
+    expect(screen.getByRole('tab', { name: 'All projects' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'WEBAPP' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'MOBILE' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'MOBILE' }));
+
+    await waitFor(() => {
+      const lastCall = mockedFetchMyTasks.mock.calls.at(-1)?.[0];
+      expect(lastCall?.projectId).toBe('p2');
+    });
+    expect(screen.getByRole('tab', { name: 'MOBILE' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('reads the selected project from the URL', async () => {
+    renderPage('/my-tasks?project=p1');
+
+    await waitFor(() => {
+      const lastCall = mockedFetchMyTasks.mock.calls.at(-1)?.[0];
+      expect(lastCall?.projectId).toBe('p1');
+    });
+    expect(screen.getByRole('tab', { name: 'WEBAPP' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('applies status filters to the request', async () => {

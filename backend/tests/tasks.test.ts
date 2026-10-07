@@ -506,6 +506,10 @@ describe('GET /api/my/tasks', () => {
   it('returns tasks assigned to the caller across accessible projects only', async () => {
     const { pm, developer, outsider, project } = await taskScenario();
     const otherProject = await createProjectFixture({ manager: pm.user, code: 'INVISIBLE' });
+    const secondProject = await createProjectFixture({ manager: pm.user, code: 'SECOND' });
+    await prisma.projectMember.create({
+      data: { projectId: secondProject.id, userId: developer.user.id, projectRole: 'DEVELOPER' },
+    });
 
     await createTaskFixture({
       projectId: project.id,
@@ -513,6 +517,12 @@ describe('GET /api/my/tasks', () => {
       title: 'Mine in visible project',
       assigneeId: developer.user.id,
       statusKey: 'IN_PROGRESS',
+    });
+    await createTaskFixture({
+      projectId: secondProject.id,
+      reporter: pm.user,
+      title: 'Mine in second project',
+      assigneeId: developer.user.id,
     });
     await createTaskFixture({
       projectId: otherProject.id,
@@ -524,12 +534,24 @@ describe('GET /api/my/tasks', () => {
 
     const asDeveloper = await authed(app, developer.client).get('/api/my/tasks');
     expect(asDeveloper.status).toBe(200);
-    expect(asDeveloper.body.meta.total).toBe(1);
-    expect(asDeveloper.body.data.tasks[0].title).toBe('Mine in visible project');
-    expect(asDeveloper.body.data.tasks[0].project.code).toBe('WEBAPP');
+    expect(asDeveloper.body.meta.total).toBe(2);
 
     const withFilter = await authed(app, developer.client).get('/api/my/tasks?status=TODO');
     expect(withFilter.body.meta.total).toBe(0);
+
+    // The project tab filter narrows the list to one project.
+    const scoped = await authed(app, developer.client).get(`/api/my/tasks?projectId=${project.id}`);
+    expect(scoped.body.meta.total).toBe(1);
+    expect(scoped.body.data.tasks[0].title).toBe('Mine in visible project');
+    expect(scoped.body.data.tasks[0].project.code).toBe('WEBAPP');
+
+    const scopedSecond = await authed(app, developer.client).get(`/api/my/tasks?projectId=${secondProject.id}`);
+    expect(scopedSecond.body.meta.total).toBe(1);
+    expect(scopedSecond.body.data.tasks[0].project.code).toBe('SECOND');
+
+    // A project the caller cannot see stays invisible even when requested.
+    const scopedInvisible = await authed(app, developer.client).get(`/api/my/tasks?projectId=${otherProject.id}`);
+    expect(scopedInvisible.body.meta.total).toBe(0);
 
     const asOutsider = await authed(app, outsider.client).get('/api/my/tasks');
     expect(asOutsider.body.meta.total).toBe(0);

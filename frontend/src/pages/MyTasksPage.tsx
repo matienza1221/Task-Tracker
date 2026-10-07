@@ -3,9 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody, CardHeader } from '../components/ui/Card';
 import { Pagination } from '../components/ui/Pagination';
 import { EmptyState, ErrorState, Skeleton } from '../components/ui/States';
+import { Tabs, type TabItem } from '../components/ui/Tabs';
 import { TaskFiltersBar } from '../components/tasks/TaskFiltersBar';
 import { TaskTable } from '../components/tasks/TaskTable';
 import { CheckSquareIcon } from '../components/ui/icons';
+import { useProjects } from '../features/projects/queries';
 import { useMyTasks } from '../features/tasks/queries';
 import type { TaskFilters } from '../features/tasks/types';
 import { useDebounce } from '../hooks/useDebounce';
@@ -25,6 +27,7 @@ export function MyTasksPage() {
       q: debouncedSearch || undefined,
       status: status ? [status] : undefined,
       priority: priority ? [priority] : undefined,
+      projectId: searchParams.get('project') ?? undefined,
       overdue: searchParams.get('overdue') === 'true' || undefined,
       blocked: searchParams.get('blocked') === 'true' || undefined,
       includeCompleted: searchParams.get('completed') === 'true' ? true : undefined,
@@ -35,6 +38,13 @@ export function MyTasksPage() {
   }, [debouncedSearch, searchParams]);
 
   const tasks = useMyTasks(filters);
+  const projects = useProjects({ pageSize: 100 });
+  const projectList = projects.data?.data.projects ?? [];
+  const selectedProject = projectList.find((project) => project.id === searchParams.get('project')) ?? null;
+  const projectTabs: TabItem[] = [
+    { id: 'all', label: 'All projects' },
+    ...projectList.map((project) => ({ id: project.id, label: project.code })),
+  ];
 
   const setParam = (key: string, value: string | null) => {
     const next = new URLSearchParams(searchParams);
@@ -98,6 +108,15 @@ export function MyTasksPage() {
         </p>
       </div>
 
+      {projectTabs.length > 1 && (
+        <Tabs
+          tabs={projectTabs}
+          value={selectedProject?.id ?? 'all'}
+          onChange={(id) => setParam('project', id === 'all' ? null : id)}
+          ariaLabel="Filter tasks by project"
+        />
+      )}
+
       <TaskFiltersBar
         filters={filters}
         searchValue={searchInput}
@@ -112,7 +131,12 @@ export function MyTasksPage() {
       />
 
       <Card>
-        <CardHeader title="Assigned work" description="Across every project you belong to" />
+        <CardHeader
+          title="Assigned work"
+          description={
+            selectedProject ? `${selectedProject.code} — ${selectedProject.name}` : 'Across every project you belong to'
+          }
+        />
         {tasks.isLoading && (
           <CardBody className="space-y-3">
             <Skeleton className="h-10 w-full" />
@@ -128,7 +152,11 @@ export function MyTasksPage() {
           <CardBody>
             <EmptyState
               title="Nothing assigned to you"
-              description="Tasks assigned to you will appear here, across all of your projects."
+              description={
+                selectedProject
+                  ? `You have no assigned tasks in ${selectedProject.code}.`
+                  : 'Tasks assigned to you will appear here, across all of your projects.'
+              }
             />
           </CardBody>
         )}

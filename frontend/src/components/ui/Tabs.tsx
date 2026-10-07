@@ -12,10 +12,11 @@ export interface TabsProps {
   value: string;
   onChange: (id: string) => void;
   className?: string;
+  ariaLabel?: string;
 }
 
 /** Accessible tab list with roving focus and arrow-key navigation. */
-export function Tabs({ tabs, value, onChange, className }: TabsProps) {
+export function Tabs({ tabs, value, onChange, className, ariaLabel = 'Project sections' }: TabsProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -33,39 +34,45 @@ export function Tabs({ tabs, value, onChange, className }: TabsProps) {
   };
 
   return (
-    <div
-      role="tablist"
-      aria-label="Project sections"
-      onKeyDown={onKeyDown}
-      className={cn('flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-800', className)}
-    >
-      {tabs.map((tab, index) => {
-        const selected = tab.id === value;
-        return (
-          <button
-            key={tab.id}
-            ref={(node) => {
-              refs.current[index] = node;
-            }}
-            role="tab"
-            id={`tab-${tab.id}`}
-            aria-selected={selected}
-            aria-controls={`panel-${tab.id}`}
-            tabIndex={selected ? 0 : -1}
-            type="button"
-            onClick={() => onChange(tab.id)}
-            className={cn(
-              '-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3.5 py-2.5 text-sm font-medium transition-colors',
-              selected
-                ? 'border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300'
-                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
-            )}
-          >
-            {tab.label}
-            {tab.badge}
-          </button>
-        );
-      })}
+    // The baseline lives on the wrapper (not the scrolling tablist) so the
+    // active tab's underline can overlap it without the tablist overflowing
+    // vertically, which would otherwise show a stray scrollbar.
+    <div className={cn('relative', className)}>
+      <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-slate-200 dark:bg-slate-800" />
+      <div
+        role="tablist"
+        aria-label={ariaLabel}
+        onKeyDown={onKeyDown}
+        className="relative flex gap-1 overflow-x-auto"
+      >
+        {tabs.map((tab, index) => {
+          const selected = tab.id === value;
+          return (
+            <button
+              key={tab.id}
+              ref={(node) => {
+                refs.current[index] = node;
+              }}
+              role="tab"
+              id={`tab-${tab.id}`}
+              aria-selected={selected}
+              aria-controls={`panel-${tab.id}`}
+              tabIndex={selected ? 0 : -1}
+              type="button"
+              onClick={() => onChange(tab.id)}
+              className={cn(
+                'flex shrink-0 items-center gap-2 border-b-2 px-3.5 py-2.5 text-sm font-medium transition-colors',
+                selected
+                  ? 'border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300'
+                  : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
+              )}
+            >
+              {tab.label}
+              {tab.badge}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -70,6 +70,7 @@ export const taskListQuerySchema = z.object({
   label: stringArrayParam(),
   milestone: stringArrayParam(),
   parentTaskId: z.string().uuid().optional(),
+  projectId: z.string().uuid().optional(),
   scope: z.enum(['all', 'mine', 'unassigned']).default('all'),
   subtasks: z.enum(['top', 'all', 'only']).default('all'),
   overdue: booleanParam,

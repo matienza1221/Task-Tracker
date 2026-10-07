@@ -84,6 +84,7 @@ function buildFilterWhere(query: TaskListQuery, user: User): Prisma.TaskWhereInp
   if (query.label?.length) and.push({ labels: { some: { labelId: { in: query.label } } } });
   if (query.milestone?.length) and.push({ milestoneId: { in: query.milestone } });
   if (query.parentTaskId) and.push({ parentTaskId: query.parentTaskId });
+  if (query.projectId) and.push({ projectId: query.projectId });
 
   if (query.scope === 'mine') and.push({ assigneeId: user.id });
   if (query.scope === 'unassigned') and.push({ assigneeId: null });
